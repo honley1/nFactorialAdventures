@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
                     },
                     // Общее количество достижений
                     totalAchievements: {
-                        $size: '$achievements'
+                        $size: '$achievementsUnlocked'
                     },
                     // Активная сессия
                     activeSession: {
@@ -251,7 +251,7 @@ router.get('/achievements', async (req, res) => {
         const achievementLeaders = await User.aggregate([
             {
                 $addFields: {
-                    achievementCount: { $size: '$achievements' }
+                    achievementCount: { $size: '$achievementsUnlocked' }
                 }
             },
             {
@@ -267,7 +267,7 @@ router.get('/achievements', async (req, res) => {
                     firstName: 1,
                     avatar: 1,
                     achievementCount: 1,
-                    achievements: 1
+                    achievementsUnlocked: 1
                 }
             }
         ]);
@@ -278,7 +278,7 @@ router.get('/achievements', async (req, res) => {
             username: player.username || player.firstName || 'Анонимный игрок',
             avatar: player.avatar || '🏆',
             achievementCount: player.achievementCount,
-            achievements: player.achievements
+            achievements: player.achievementsUnlocked
         }));
 
         res.json({
@@ -292,6 +292,62 @@ router.get('/achievements', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to load achievement leaderboard',
+            message: error.message
+        });
+    }
+});
+
+// GET /api/leaderboard/achievements/:telegramId - Получить достижения игрока
+router.get('/achievements/:telegramId', async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        
+        // Находим пользователя
+        const user = await User.findOne({ telegramId: telegramId.toString() });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Получаем DOOM сессию для проверки простых достижений
+        const DoomSession = require('../models/DoomSession');
+        const doomSession = await DoomSession.findOne({ userId: user._id });
+        
+        // Формируем ответ с достижениями
+        const response = {
+            success: true,
+            user: {
+                telegramId: user.telegramId,
+                username: user.username,
+                level: user.level,
+                avatar: user.avatar
+            },
+            achievements: {
+                // Глобальные достижения из модели Achievement
+                global: user.achievementsUnlocked || [],
+                // Простые DOOM достижения
+                doom: doomSession?.achievements || [],
+                // Статистика
+                stats: {
+                    totalGlobal: (user.achievementsUnlocked || []).length,
+                    totalDoom: (doomSession?.achievements || []).length,
+                    enemiesKilled: doomSession?.stats?.enemiesKilled || 0,
+                    itemsCollected: doomSession?.stats?.itemsCollected || 0,
+                    levelsCompleted: (doomSession?.levelsCompleted || []).length
+                }
+            },
+            timestamp: new Date().toISOString()
+        };
+        
+        res.json(response);
+        
+    } catch (error) {
+        console.error('❌ Get user achievements error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get user achievements',
             message: error.message
         });
     }

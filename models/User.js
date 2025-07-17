@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 1,
     min: 1,
-    max: 10
+    max: 50
   },
   experience: {
     type: Number,
@@ -172,7 +172,7 @@ userSchema.methods.addExperience = function(amount) {
   this.experience += amount;
   
   // Проверка повышения уровня
-  const requiredExp = this.level * 1000; // 1000 опыта на уровень
+  const requiredExp = this.level * 100; // 100 опыта на уровень (синхронизировано с DOOM)
   if (this.experience >= requiredExp && this.level < 10) {
     this.level += 1;
     return { levelUp: true, newLevel: this.level };

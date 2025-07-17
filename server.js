@@ -48,6 +48,7 @@ if (process.env.MONGO_URI) {
 const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
 const leaderboardRoutes = require('./routes/leaderboard');
+const doomRoutes = require('./routes/doom');
 
 // Import additional game endpoints
 const gameEndpoints = require('./utils/gameEndpoints');
@@ -56,6 +57,7 @@ const gameEndpoints = require('./utils/gameEndpoints');
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/doom', doomRoutes);
 
 // Additional game endpoints
 app.get('/api/game/resources/:sessionId', gameEndpoints.getResourceStatus);

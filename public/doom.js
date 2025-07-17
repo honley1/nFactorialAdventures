@@ -97,6 +97,21 @@ class NFactorialDoom {
         this.gameState = 'loading';  // loading, menu, playing, paused
         this.dialogue = { active: false, npc: null, messageIndex: 0 };
         
+        // === СИСТЕМА ЗВУКОВ ===
+        this.sounds = {
+            gun: null,
+            hurt: null
+        };
+        this.audioManager = {
+            enabled: true,
+            volume: 0.5
+        };
+        
+        // === СИСТЕМА ПУЛЬ/ПАТРОНОВ ===
+        this.bullets = []; // Массив летящих пуль
+        this.bulletSpeed = 0.15; // Скорость полета пули
+        this.bulletLifetime = 2000; // Время жизни пули в мс
+        
         this.init();
     }
 
@@ -107,6 +122,9 @@ class NFactorialDoom {
         try {
             // Инициализация Telegram
             this.initTelegram();
+            
+            // Инициализация звуков
+            this.initSounds();
             
             // Показать экран загрузки
             this.showScreen('loading-screen');
@@ -124,6 +142,179 @@ class NFactorialDoom {
             console.error('Ошибка инициализации:', error);
             this.showNotification('Ошибка загрузки игры', 'error');
         }
+    }
+
+    // === СИСТЕМА ЗВУКОВ ===
+    
+    // Инициализация звуков
+    initSounds() {
+        try {
+            console.log('🎵 Инициализация звуковой системы...');
+            
+            // Создание Audio объектов
+            this.sounds.gun = new Audio('gun.mp3');
+            this.sounds.hurt = new Audio('hurt.mp3');
+            
+            // Настройка звуков
+            Object.values(this.sounds).forEach(sound => {
+                if (sound) {
+                    sound.volume = this.audioManager.volume;
+                    sound.preload = 'auto';
+                    
+                    // Обработка ошибок загрузки
+                    sound.addEventListener('error', (e) => {
+                        console.warn(`⚠️ Ошибка загрузки звука:`, e);
+                    });
+                }
+            });
+            
+            console.log('✅ Звуковая система инициализирована');
+        } catch (error) {
+            console.warn('⚠️ Ошибка инициализации звуков:', error);
+            this.audioManager.enabled = false;
+        }
+    }
+    
+    // Воспроизведение звука
+    playSound(soundName) {
+        if (!this.audioManager.enabled || !this.sounds[soundName]) return;
+        
+        try {
+            const sound = this.sounds[soundName];
+            sound.currentTime = 0; // Сброс к началу для повторного воспроизведения
+            sound.volume = this.audioManager.volume;
+            
+            const playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn(`⚠️ Ошибка воспроизведения звука ${soundName}:`, error);
+                });
+            }
+        } catch (error) {
+            console.warn(`⚠️ Ошибка при попытке воспроизвести звук ${soundName}:`, error);
+        }
+    }
+    
+    // Управление громкостью
+    setVolume(volume) {
+        this.audioManager.volume = Math.max(0, Math.min(1, volume));
+        Object.values(this.sounds).forEach(sound => {
+            if (sound) sound.volume = this.audioManager.volume;
+        });
+    }
+    
+    // Включение/выключение звуков
+    toggleSounds() {
+        this.audioManager.enabled = !this.audioManager.enabled;
+        console.log(`🔊 Звуки: ${this.audioManager.enabled ? 'включены' : 'выключены'}`);
+    }
+
+    // === СИСТЕМА ПУЛЬ/ПАТРОНОВ ===
+    
+    // Создание пули
+    createBullet(startX, startY, angle) {
+        const bullet = {
+            id: Date.now() + Math.random(), // Уникальный ID
+            x: startX,
+            y: startY,
+            angle: angle,
+            speed: this.bulletSpeed,
+            startTime: Date.now(),
+            alive: true,
+            // Направление движения
+            dx: Math.cos(angle) * this.bulletSpeed,
+            dy: Math.sin(angle) * this.bulletSpeed
+        };
+        
+        this.bullets.push(bullet);
+        console.log(`🔫 Пуля выпущена: ${bullet.id}`);
+        return bullet;
+    }
+    
+    // Обновление пуль
+    updateBullets() {
+        const currentTime = Date.now();
+        
+        this.bullets = this.bullets.filter(bullet => {
+            if (!bullet.alive) return false;
+            
+            // Проверка времени жизни
+            if (currentTime - bullet.startTime > this.bulletLifetime) {
+                console.log(`💨 Пуля ${bullet.id} исчезла (время жизни)`);
+                return false;
+            }
+            
+            // Движение пули
+            bullet.x += bullet.dx;
+            bullet.y += bullet.dy;
+            
+            // Проверка коллизии со стенами
+            if (this.isWall(Math.floor(bullet.x), Math.floor(bullet.y))) {
+                console.log(`💥 Пуля ${bullet.id} попала в стену`);
+                return false;
+            }
+            
+            // Проверка коллизии с врагами
+            this.enemies.forEach(enemy => {
+                if (enemy.health <= 0) return;
+                
+                const dx = enemy.x - bullet.x;
+                const dy = enemy.y - bullet.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 0.3) { // Радиус попадания
+                    const damage = 25;
+                    enemy.health -= damage;
+                    bullet.alive = false;
+                    
+                    console.log(`🎯 Пуля ${bullet.id} попала в ${enemy.type}! Урон: ${damage}`);
+                    this.showNotification(`Попадание! -${damage} HP`, 'success');
+                    
+                    if (enemy.health <= 0) {
+                        this.showNotification(`${enemy.type === 'bug' ? 'Баг' : 'Дедлайн'} уничтожен!`, 'success');
+                        // DOOM интеграция: Записываем убийство врага
+                        this.recordEnemyKill(enemy);
+                    }
+                }
+            });
+            
+            return bullet.alive;
+        });
+    }
+    
+    // Рендеринг пуль
+    renderBullets() {
+        this.bullets.forEach(bullet => {
+            if (!bullet.alive) return;
+            
+            const dx = bullet.x - this.player.x;
+            const dy = bullet.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > this.maxDistance) return;
+            
+            // Угол к пуле
+            const angle = Math.atan2(dy, dx);
+            let angleDiff = angle - this.player.angle;
+            
+            // Нормализация угла
+            if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            
+            // Проверка видимости
+            if (Math.abs(angleDiff) > this.fov / 2) return;
+            
+            // Позиция на экране
+            const screenX = (this.canvas.width / 2) + (angleDiff / this.fov) * this.canvas.width;
+            const bulletSize = Math.max(2, (this.canvas.height / distance) * 0.02);
+            const screenY = (this.canvas.height / 2) - bulletSize / 2;
+            
+            // Рендер пули как желтая точка
+            this.ctx.fillStyle = '#ffff00';
+            this.ctx.beginPath();
+            this.ctx.arc(screenX, screenY, bulletSize, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
     }
 
     // Инициализация Telegram
@@ -185,14 +376,16 @@ class NFactorialDoom {
                 this.gameSession = result.gameSession;
                 this.updatePlayerInfo();
                 console.log('✅ Авторизация успешна:', this.user.username);
+                
+                // DOOM интеграция: Инициализация DOOM сессии
+                await this.initDoomSession();
             } else {
                 throw new Error(result.message);
             }
         } catch (error) {
             console.error('❌ Ошибка авторизации:', error);
-            // Fallback к тестовому пользователю
-            this.user = { username: 'TestPlayer', level: 1, avatar: 'doomguy' };
-            this.gameSession = { resources: { coffee: 100, motivation: 100, knowledge: 0 } };
+            this.showNotification('Ошибка входа в систему', 'error');
+            throw error; // Прерываем инициализацию вместо fallback
         }
     }
 
@@ -201,6 +394,14 @@ class NFactorialDoom {
         if (this.user) {
             document.getElementById('player-name').textContent = this.user.username;
             document.getElementById('player-level').textContent = `Уровень ${this.user.level}`;
+            
+            // Обновляем полоску опыта
+            const currentExp = this.user.experience || 0;
+            const requiredExp = this.user.level * 100; // Синхронизировано с бэкендом
+            const expProgress = Math.min(100, (currentExp / requiredExp) * 100);
+            
+            document.getElementById('exp-fill').style.width = expProgress + '%';
+            document.getElementById('exp-text').textContent = `${currentExp}/${requiredExp} EXP`;
         }
     }
 
@@ -219,6 +420,22 @@ class NFactorialDoom {
         // Настройки
         document.getElementById('save-settings')?.addEventListener('click', () => this.saveSettings());
         document.getElementById('close-settings')?.addEventListener('click', () => this.closeSettings());
+        
+        // Настройки звука
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeValue = document.getElementById('volume-value');
+        const soundToggle = document.getElementById('sound-toggle');
+        
+        volumeSlider?.addEventListener('input', (e) => {
+            const volume = parseInt(e.target.value) / 100;
+            this.setVolume(volume);
+            if (volumeValue) volumeValue.textContent = `${e.target.value}%`;
+        });
+        
+        soundToggle?.addEventListener('change', (e) => {
+            this.audioManager.enabled = e.target.checked;
+            console.log(`🔊 Звуки: ${this.audioManager.enabled ? 'включены' : 'выключены'}`);
+        });
         
         // Диалоги
         document.getElementById('dialogue-continue')?.addEventListener('click', () => this.continueDialogue());
@@ -370,6 +587,9 @@ class NFactorialDoom {
         // Запуск игрового цикла
         this.startGameLoop();
         
+        // DOOM интеграция: Запуск автосинхронизации
+        this.startAutoSync();
+        
         // Показать уведомление
         this.showNotification('Добро пожаловать в nFactorial DOOM!', 'info');
     }
@@ -450,6 +670,7 @@ class NFactorialDoom {
     update() {
         this.updatePlayer();
         this.updateEnemies();
+        this.updateBullets(); // Обновление пуль
         this.checkCollisions();
         this.checkInteractions();
     }
@@ -553,6 +774,10 @@ class NFactorialDoom {
                 if (currentTime - enemy.lastAttack > 1000) {
                     const damage = enemy.type === 'deadline' ? 10 : 5;
                     console.log(`💥 ${enemy.type} атакует! Урон: ${damage}, HP было: ${this.player.health}`);
+                    
+                    // Звук получения урона
+                    this.playSound('hurt');
+                    
                     this.player.health -= damage;
                     enemy.lastAttack = currentTime;
                     console.log(`❤️ HP стало: ${this.player.health}`);
@@ -607,6 +832,9 @@ class NFactorialDoom {
         }
         
         this.updateHUD();
+        
+        // DOOM интеграция: Записываем сбор предмета
+        this.recordItemCollection(item);
     }
 
     // Проверка стены
@@ -624,32 +852,19 @@ class NFactorialDoom {
             return;
         }
         
+        // Звук выстрела
+        this.playSound('gun');
+        
+        // Уменьшаем патроны
         this.player.ammo--;
         this.updateHUD();
         
-        // Проверка попадания в врагов
-        this.enemies.forEach(enemy => {
-            if (enemy.health <= 0) return;
-            
-            const dx = enemy.x - this.player.x;
-            const dy = enemy.y - this.player.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx);
-            
-            // Проверка направления выстрела
-            let angleDiff = Math.abs(angle - this.player.angle);
-            if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-            
-            if (distance < 5 && angleDiff < 0.3) {
-                const damage = 25;
-                enemy.health -= damage;
-                this.showNotification(`Попадание! -${damage} HP`, 'success');
-                
-                if (enemy.health <= 0) {
-                    this.showNotification(`${enemy.type === 'bug' ? 'Баг' : 'Дедлайн'} уничтожен!`, 'success');
-                }
-            }
-        });
+        // Создаем пулю
+        const bulletStartX = this.player.x + Math.cos(this.player.angle) * 0.3;
+        const bulletStartY = this.player.y + Math.sin(this.player.angle) * 0.3;
+        this.createBullet(bulletStartX, bulletStartY, this.player.angle);
+        
+        console.log(`🔫 Выстрел! Патронов осталось: ${this.player.ammo}`);
     }
 
     // Взаимодействие
@@ -705,6 +920,9 @@ class NFactorialDoom {
         this.dialogue.messageIndex++;
         
         if (this.dialogue.messageIndex >= this.dialogue.npc.dialogue.length) {
+            // DOOM интеграция: Записываем завершение диалога
+            this.recordNPCDialogue(this.dialogue.npc.id, this.dialogue.messageIndex, true);
+            
             this.endDialogue();
         } else {
             this.showDialogue();
@@ -724,6 +942,7 @@ class NFactorialDoom {
     render() {
         this.renderWorld();
         this.renderSprites();
+        this.renderBullets(); // Рендеринг пуль
         this.renderMinimap();
         this.updateHUD();
     }
@@ -858,6 +1077,9 @@ class NFactorialDoom {
             }
         }
         
+        // Радар направления взгляда (рисуем сначала, чтобы игрок был поверх)
+        this.renderRadar(this.player.x * scale, this.player.y * scale, this.player.angle);
+        
         // Рендер игрока
         this.minimapCtx.fillStyle = '#0f0';
         this.minimapCtx.fillRect(
@@ -865,17 +1087,6 @@ class NFactorialDoom {
             this.player.y * scale - 2,
             4, 4
         );
-        
-        // Направление взгляда
-        this.minimapCtx.strokeStyle = '#0f0';
-        this.minimapCtx.lineWidth = 2;
-        this.minimapCtx.beginPath();
-        this.minimapCtx.moveTo(this.player.x * scale, this.player.y * scale);
-        this.minimapCtx.lineTo(
-            this.player.x * scale + Math.cos(this.player.angle) * 15,
-            this.player.y * scale + Math.sin(this.player.angle) * 15
-        );
-        this.minimapCtx.stroke();
         
         // Врагии НПС
         [...this.npcs, ...this.enemies, ...this.items].forEach(entity => {
@@ -887,6 +1098,81 @@ class NFactorialDoom {
                 2, 2
             );
         });
+    }
+
+    // Рендеринг радара направления взгляда
+    renderRadar(centerX, centerY, angle) {
+        const ctx = this.minimapCtx;
+        const maxRadius = 15; // Уменьшили радиус радара для мини-карты 120x120
+        const fovAngle = Math.PI / 3; // 60° - поле зрения
+        
+        // Сохраняем состояние контекста
+        ctx.save();
+        
+        // === КОНЦЕНТРИЧЕСКИЕ КОЛЬЦА РАДАРА ===
+        const rings = [5, 10, 15]; // Радиусы колец уменьшены для мини-карты
+        
+        rings.forEach((radius, index) => {
+            ctx.strokeStyle = `rgba(0, 255, 0, ${0.6 - index * 0.15})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+        
+        // Сбрасываем пунктирную линию
+        ctx.setLineDash([]);
+        
+        // === СЕКТОР НАПРАВЛЕНИЯ ВЗГЛЯДА ===
+        // Создаем градиент для сектора
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
+        gradient.addColorStop(0, 'rgba(0, 255, 0, 0.6)');
+        gradient.addColorStop(0.7, 'rgba(0, 255, 0, 0.2)');
+        gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+        
+        // Рисуем сектор поля зрения
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, maxRadius, angle - fovAngle/2, angle + fovAngle/2);
+        ctx.closePath();
+        ctx.fill();
+        
+        // === ЛИНИЯ ОСНОВНОГО НАПРАВЛЕНИЯ ===
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+            centerX + Math.cos(angle) * 12,
+            centerY + Math.sin(angle) * 12
+        );
+        ctx.stroke();
+        
+        // === ЦЕНТРАЛЬНАЯ ТОЧКА РАДАРА ===
+        ctx.fillStyle = '#00ff00';
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // === ИМПУЛЬС СКАНИРОВАНИЯ (анимация) ===
+        // Создаем эффект "пульса" радара
+        const time = Date.now() * 0.003;
+        const pulseRadius = (Math.sin(time) * 0.5 + 0.5) * maxRadius;
+        
+        ctx.strokeStyle = `rgba(0, 255, 0, ${0.8 - (pulseRadius / maxRadius) * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Восстанавливаем состояние контекста
+        ctx.restore();
     }
 
     // Обновление HUD
@@ -994,6 +1280,247 @@ class NFactorialDoom {
 
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // === DOOM ИНТЕГРАЦИЯ С БЭКЕНДОМ ===
+
+    async initDoomSession() {
+        try {
+            console.log('🎮 Инициализация DOOM сессии...');
+            
+            const response = await fetch('/api/doom/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: this.tg?.initDataUnsafe?.user?.id || '12345'
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.doomSession = result.session;
+                
+                // Синхронизируем данные с сервера
+                if (this.doomSession.player) {
+                    this.player.health = this.doomSession.player.health;
+                    this.player.armor = this.doomSession.player.armor;  
+                    this.player.ammo = this.doomSession.player.ammo;
+                    
+                    // Позиция игрока (если сохранена)
+                    if (this.doomSession.player.x && this.doomSession.player.y) {
+                        this.player.x = this.doomSession.player.x;
+                        this.player.y = this.doomSession.player.y;
+                        this.player.angle = this.doomSession.player.angle || 0;
+                    }
+                }
+                
+                console.log('✅ DOOM сессия инициализирована:', {
+                    level: this.doomSession.level,
+                    currentWeek: this.doomSession.currentWeek,
+                    stats: this.doomSession.stats,
+                    enemiesKilled: this.doomSession.enemiesKilled,
+                    achievements: this.doomSession.achievements?.length || 0
+                });
+                
+                // Показываем достижения если есть новые
+                if (this.doomSession.achievements?.length > 0) {
+                    this.doomSession.achievements.slice(-3).forEach((achievement, index) => {
+                        setTimeout(() => {
+                            this.showNotification(`🏆 ${achievement.name}`, 'achievement');
+                        }, index * 1000);
+                    });
+                }
+                
+            } else {
+                console.error('❌ Ошибка инициализации DOOM сессии:', result.error);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка подключения к DOOM API:', error);
+            // Продолжаем без сессии, игра работает локально
+            this.doomSession = null;
+        }
+    }
+
+    async syncPlayerStats() {
+        if (!this.doomSession || !this.user) return;
+        
+        try {
+            const response = await fetch('/api/doom/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: this.tg?.initDataUnsafe?.user?.id || '12345',
+                    player: {
+                        x: this.player.x,
+                        y: this.player.y,
+                        angle: this.player.angle,
+                        health: this.player.health,
+                        armor: this.player.armor,
+                        ammo: this.player.ammo
+                    },
+                    sessionTime: 30 // секунд с последней синхронизации
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                console.log('🔄 Статы игрока синхронизированы');
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка синхронизации:', error);
+        }
+    }
+
+    startAutoSync() {
+        // Автосохранение каждые 30 секунд
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
+        
+        this.syncInterval = setInterval(() => {
+            if (this.gameState === 'playing') {
+                this.syncPlayerStats();
+            }
+        }, 30000); // 30 секунд
+        
+        console.log('🔄 Автосинхронизация запущена (каждые 30 сек)');
+    }
+
+    async recordEnemyKill(enemy) {
+        if (!this.doomSession || !this.user) return;
+        
+        try {
+            const response = await fetch('/api/doom/enemy-killed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: this.tg?.initDataUnsafe?.user?.id || '12345',
+                    enemyId: enemy.id,
+                    enemyType: enemy.type,
+                    playerStats: this.player,
+                    shotsFired: 1
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                // Показываем полученный опыт и очки
+                if (result.expGain) {
+                    this.showNotification(`+${result.expGain} EXP`, 'success');
+                }
+                if (result.scoreGain) {
+                    this.showNotification(`+${result.scoreGain} очков`, 'success');
+                }
+                
+                // Проверяем повышение уровня
+                if (result.levelUp) {
+                    this.showNotification(`🆙 LEVEL UP! Уровень ${result.newLevel}`, 'levelup');
+                    this.user.level = result.newLevel;
+                    this.updatePlayerInfo(); // Обновляем отображение уровня в HUD
+                }
+                
+                // Показываем новые достижения
+                if (result.newAchievements?.length > 0) {
+                    result.newAchievements.forEach((achievement, index) => {
+                        setTimeout(() => {
+                            this.showNotification(`🏆 ${achievement.name}`, 'achievement');
+                        }, (index + 1) * 1000);
+                    });
+                }
+                
+                // Обновляем локальную статистику
+                this.user.experience = result.experience;
+                this.updatePlayerInfo(); // Обновляем отображение опыта
+                
+                console.log(`⚔️ Враг ${enemy.type} убит, опыт: +${result.expGain}`);
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка записи убийства врага:', error);
+        }
+    }
+
+    async recordItemCollection(item) {
+        if (!this.doomSession || !this.user) return;
+        
+        try {
+            const response = await fetch('/api/doom/item-collected', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: this.tg?.initDataUnsafe?.user?.id || '12345',
+                    itemId: item.id,
+                    itemType: item.type,
+                    value: item.value,
+                    playerStats: this.player
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success && result.newAchievements?.length > 0) {
+                result.newAchievements.forEach((achievement, index) => {
+                    setTimeout(() => {
+                        this.showNotification(`🏆 ${achievement.name}`, 'achievement');
+                    }, (index + 1) * 1000);
+                });
+            }
+            
+            console.log(`📦 Предмет ${item.type} собран`);
+        } catch (error) {
+            console.warn('⚠️ Ошибка записи сбора предмета:', error);
+        }
+    }
+
+    async recordNPCDialogue(npcId, dialogueStage, completed = false) {
+        if (!this.doomSession || !this.user) return;
+        
+        try {
+            const response = await fetch('/api/doom/npc-dialogue', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: this.tg?.initDataUnsafe?.user?.id || '12345',
+                    npcId: npcId,
+                    dialogueStage: dialogueStage,
+                    completed: completed
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success && completed) {
+                this.showNotification('💬 Диалог завершен! Получены награды', 'success');
+                
+                // Показываем полученный опыт
+                if (result.expGain) {
+                    this.showNotification(`+${result.expGain} EXP`, 'success');
+                }
+                
+                // Проверяем повышение уровня
+                if (result.levelUp) {
+                    this.showNotification(`🆙 LEVEL UP! Уровень ${result.newLevel}`, 'levelup');
+                    this.user.level = result.newLevel;
+                    this.updatePlayerInfo(); // Обновляем отображение уровня в HUD
+                }
+                
+                // Показываем новые достижения
+                if (result.newAchievements?.length > 0) {
+                    result.newAchievements.forEach((achievement, index) => {
+                        setTimeout(() => {
+                            this.showNotification(`🏆 ${achievement.name}`, 'achievement');
+                        }, (index + 1) * 1000);
+                    });
+                }
+                
+                // Обновляем опыт
+                if (result.experience) {
+                    this.user.experience = result.experience;
+                    this.updatePlayerInfo(); // Обновляем отображение опыта
+                }
+            }
+            
+            console.log(`💬 Диалог с ${npcId}, этап ${dialogueStage}`);
+        } catch (error) {
+            console.warn('⚠️ Ошибка записи диалога:', error);
+        }
     }
 }
 

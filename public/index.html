@@ -41,6 +41,10 @@
                 <div class="player-stats">
                     <p id="player-name">Игрок</p>
                     <p id="player-level">Уровень 1</p>
+                    <div class="exp-bar">
+                        <div class="exp-fill" id="exp-fill"></div>
+                        <span class="exp-text" id="exp-text">0/100 EXP</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,6 +146,11 @@
             <div class="setting-group">
                 <label>Звук</label>
                 <input type="range" id="volume-slider" min="0" max="100" value="50">
+                <span id="volume-value">50%</span>
+            </div>
+            <div class="setting-group">
+                <label>Включить звуки</label>
+                <input type="checkbox" id="sound-toggle" checked>
             </div>
             <div class="setting-group">
                 <label>Чувствительность мыши</label>
