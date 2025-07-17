@@ -360,8 +360,7 @@ class NFactorialDoom {
             const userData = {
                 telegramId: this.tg?.initDataUnsafe?.user?.id || '12345',
                 username: this.tg?.initDataUnsafe?.user?.username || 'TestUser',
-                avatar: 'doomguy',
-                first_name: this.tg?.initDataUnsafe?.user?.first_name || 'Test'
+                avatar: 'doomguy'
             };
 
             const response = await fetch('/api/auth/login', {
@@ -397,6 +396,44 @@ class NFactorialDoom {
         if (this.user) {
             document.getElementById('player-name').textContent = this.user.username;
             document.getElementById('player-level').textContent = `Уровень ${this.user.level}`;
+            
+            // Создаем аватарку из первой буквы username  
+            let avatarElement = document.getElementById('player-avatar');
+            
+            // Если это еще img элемент - заменяем на div
+            if (avatarElement && avatarElement.tagName === 'IMG') {
+                // Создаем аватарку из первых букв username
+                let avatarText;
+                const nameParts = this.user.username.split(/[\s_.-]+/); // Разделяем по пробелам, подчеркиваниям, точкам, дефисам
+                
+                if (nameParts.length >= 2) {
+                    // Если username содержит несколько частей (например, "John_Doe"), берем первые буквы
+                    avatarText = nameParts[0].charAt(0).toUpperCase() + nameParts[1].charAt(0).toUpperCase();
+                } else {
+                    // Если одно слово, берем первую букву
+                    avatarText = this.user.username.charAt(0).toUpperCase();
+                }
+                
+                const avatarDiv = document.createElement('div');
+                avatarDiv.id = 'player-avatar';
+                avatarDiv.className = 'avatar-letter';
+                avatarDiv.textContent = avatarText;
+                avatarDiv.style.cssText = `
+                    width: 60px; 
+                    height: 60px; 
+                    border-radius: 50%; 
+                    background: linear-gradient(45deg, #ff0000, #ff6600);
+                    color: white; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-size: 24px; 
+                    font-weight: bold;
+                    border: 2px solid #ff0000;
+                    box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
+                `;
+                avatarElement.parentNode.replaceChild(avatarDiv, avatarElement);
+            }
             
             // Обновляем полоску опыта
             const currentExp = this.user.experience || 0;
