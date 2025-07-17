@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     required: true,
-    enum: ['student1', 'student2', 'student3', 'mentor1', 'mentor2']
+    enum: ['student1', 'student2', 'student3', 'mentor1', 'mentor2', 'doomguy', 'doom_marine', 'cyber_student', 'code_warrior', 'debug_knight']
   },
   
   // Игровой прогресс

@@ -2,100 +2,45 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>nFactorial Adventures - The Ultimate Bootcamp Life Simulator</title>
-    
-    <!-- Telegram Mini App мета теги -->
-    <meta name="telegram-miniapp" content="true">
-    <meta name="theme-color" content="#1a1a1a">
-    
-    <!-- Pixel Art шрифты -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    
-    <!-- Стили -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- Telegram WebApp SDK -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nFactorial DOOM</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="doom.css">
 </head>
 <body>
-    <!-- Пиксельный загрузочный экран -->
+    <!-- Экран загрузки -->
     <div id="loading-screen" class="screen active">
-        <div class="pixel-sky">
-            <div class="cloud cloud-1"></div>
-            <div class="cloud cloud-2"></div>
-            <div class="cloud cloud-3"></div>
+        <div class="doom-logo">
+            <h1>nFactorial</h1>
+            <h2>DOOM</h2>
         </div>
-        
-        <div class="loading-content">
-            <div class="nfactorial-logo">
-                <div class="logo-circle">
-                    <div class="logo-text">¡n!</div>
-                </div>
-            </div>
-            
-            <div class="game-title">
-                <h1 class="pixel-title">nFactorial<br>Adventures</h1>
-                <p class="pixel-subtitle">The Ultimate Bootcamp Life Simulator</p>
-            </div>
-            
-            <div class="pixel-landscape">
-                <div class="pixel-tree">
-                    <div class="tree-crown"></div>
-                    <div class="tree-trunk"></div>
-                </div>
-                <div class="pixel-character">
-                    <div class="character-head"></div>
-                    <div class="character-body"></div>
-                    <div class="character-legs"></div>
-                </div>
-                <div class="pixel-grass"></div>
-                <div class="pixel-ground"></div>
-            </div>
-            
-            <div class="loading-bar-container">
-                <div class="loading-text">Loading...</div>
-                <div class="loading-bar">
-                    <div class="loading-fill"></div>
-                </div>
-                <div class="loading-percentage">0%</div>
-            </div>
+        <div class="loading-bar">
+            <div class="loading-progress" id="loading-progress"></div>
         </div>
+        <p class="loading-text">Загружаем лабиринты буткемпа...</p>
     </div>
 
-    <!-- Экран авторизации -->
-    <div id="auth-screen" class="screen">
-        <div class="auth-content">
-            <div class="pixel-box">
-                <h2 class="pixel-heading">Добро пожаловать!</h2>
-                <p class="pixel-text">Начните своё приключение в nFactorial!</p>
-                <button id="auth-button" class="pixel-button">
-                    🚀 Войти через Telegram
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Главное игровое меню -->
+    <!-- Главное меню -->
     <div id="menu-screen" class="screen">
-        <div class="menu-content">
-            <div class="pixel-menu">
-                <h2 class="pixel-heading">Главное меню</h2>
-                <div class="menu-buttons">
-                    <button class="pixel-button menu-btn" data-action="start-game">
-                        🎮 Начать игру
-                    </button>
-                    <button class="pixel-button menu-btn" data-action="continue-game">
-                        ▶️ Продолжить
-                    </button>
-                    <button class="pixel-button menu-btn" data-action="leaderboard">
-                        🏆 Лидерборд
-                    </button>
-                    <button class="pixel-button menu-btn" data-action="settings">
-                        ⚙️ Настройки
-                    </button>
+        <div class="doom-menu">
+            <div class="menu-logo">
+                <h1>nFactorial DOOM</h1>
+                <p>Выживи в буткемпе программирования!</p>
+            </div>
+            
+            <div class="menu-buttons">
+                <button id="start-game" class="doom-btn primary">🎮 Начать игру</button>
+                <button id="settings-btn" class="doom-btn">⚙️ Настройки</button>
+                <button id="leaderboard-btn" class="doom-btn">🏆 Рейтинг</button>
+            </div>
+            
+            <div class="player-info">
+                <div class="avatar-display">
+                    <img id="player-avatar" src="" alt="Avatar">
+                </div>
+                <div class="player-stats">
+                    <p id="player-name">Игрок</p>
+                    <p id="player-level">Уровень 1</p>
                 </div>
             </div>
         </div>
@@ -103,95 +48,118 @@
 
     <!-- Игровой экран -->
     <div id="game-screen" class="screen">
-        <div class="game-ui">
-            <!-- Панель ресурсов -->
-            <div class="resource-panel">
-                <div class="resource-item">
-                    <span class="resource-icon">☕</span>
-                    <div class="resource-bar">
-                        <div class="resource-fill" id="coffee-bar"></div>
+        <!-- Canvas для DOOM raycasting -->
+        <canvas id="doom-canvas"></canvas>
+        
+        <!-- HUD интерфейс -->
+        <div class="doom-hud">
+            <!-- Статусы ресурсов -->
+            <div class="hud-stats">
+                <div class="stat-bar">
+                    <span class="stat-icon">❤️</span>
+                    <div class="stat-progress health">
+                        <div class="stat-fill" id="health-fill"></div>
                     </div>
-                    <span class="resource-value" id="coffee-value">100</span>
+                    <span class="stat-value" id="health-value">100</span>
                 </div>
-                <div class="resource-item">
-                    <span class="resource-icon">💪</span>
-                    <div class="resource-bar">
-                        <div class="resource-fill" id="motivation-bar"></div>
+                
+                <div class="stat-bar">
+                    <span class="stat-icon">🛡️</span>
+                    <div class="stat-progress armor">
+                        <div class="stat-fill" id="armor-fill"></div>
                     </div>
-                    <span class="resource-value" id="motivation-value">100</span>
+                    <span class="stat-value" id="armor-value">100</span>
                 </div>
-                <div class="resource-item">
-                    <span class="resource-icon">🧠</span>
-                    <div class="resource-bar">
-                        <div class="resource-fill" id="knowledge-bar"></div>
+                
+                <div class="stat-bar">
+                    <span class="stat-icon">🔫</span>
+                    <div class="stat-progress ammo">
+                        <div class="stat-fill" id="ammo-fill"></div>
                     </div>
-                    <span class="resource-value" id="knowledge-value">0</span>
-                </div>
-                <div class="resource-item">
-                    <span class="resource-icon">😴</span>
-                    <div class="resource-bar">
-                        <div class="resource-fill" id="sleep-bar"></div>
-                    </div>
-                    <span class="resource-value" id="sleep-value">100</span>
+                    <span class="stat-value" id="ammo-value">50</span>
                 </div>
             </div>
 
-            <!-- Игровая область -->
-            <div class="game-area">
-                <canvas id="game-canvas" width="800" height="600"></canvas>
+            <!-- Прицел -->
+            <div class="crosshair">+</div>
+
+            <!-- Мини-карта -->
+            <div class="minimap">
+                <canvas id="minimap-canvas" width="120" height="120"></canvas>
+            </div>
+        </div>
+
+        <!-- Мобильные элементы управления -->
+        <div class="mobile-controls" id="mobile-controls">
+            <!-- Виртуальный джойстик -->
+            <div class="joystick-container">
+                <div class="joystick" id="movement-joystick">
+                    <div class="joystick-knob"></div>
+                </div>
             </div>
 
-            <!-- Панель действий -->
-            <div class="action-panel">
-                <button class="pixel-button action-btn" data-action="code">
-                    💻 Кодить
-                </button>
-                <button class="pixel-button action-btn" data-action="coffee">
-                    ☕ Кофе
-                </button>
-                <button class="pixel-button action-btn" data-action="mentor">
-                    👨‍🏫 Ментор
-                </button>
-                <button class="pixel-button action-btn" data-action="rest">
-                    😴 Отдых
-                </button>
+            <!-- Кнопки действий -->
+            <div class="action-buttons">
+                <button class="action-btn shoot" id="shoot-btn">🔫</button>
+                <button class="action-btn interact" id="interact-btn">💬</button>
+                <button class="action-btn turn-left" id="turn-left-btn">←</button>
+                <button class="action-btn turn-right" id="turn-right-btn">→</button>
             </div>
+        </div>
+
+        <!-- Диалоговое окно -->
+        <div class="dialogue-box" id="dialogue-box">
+            <div class="dialogue-content">
+                <div class="npc-portrait">
+                    <img id="npc-avatar" src="" alt="NPC">
+                </div>
+                <div class="dialogue-text">
+                    <h3 id="npc-name">NPC</h3>
+                    <p id="dialogue-message">Привет, студент!</p>
+                </div>
+                <button class="dialogue-continue" id="dialogue-continue">Продолжить</button>
+            </div>
+        </div>
+
+        <!-- Уведомления -->
+        <div class="notifications" id="notifications"></div>
+    </div>
+
+    <!-- Экран паузы -->
+    <div id="pause-screen" class="screen overlay">
+        <div class="pause-menu">
+            <h2>Пауза</h2>
+            <button id="resume-btn" class="doom-btn primary">Продолжить</button>
+            <button id="menu-btn" class="doom-btn">Главное меню</button>
+            <button id="restart-btn" class="doom-btn danger">Перезапуск</button>
         </div>
     </div>
 
-    <!-- Экран лидерборда -->
-    <div id="leaderboard-screen" class="screen">
-        <div class="leaderboard-content">
-            <div class="pixel-box">
-                <h2 class="pixel-heading">🏆 Лидерборд</h2>
-                <div class="leaderboard-list" id="leaderboard-list">
-                    <!-- Динамически заполняется -->
-                </div>
-                <button class="pixel-button" id="back-to-menu">
-                    ← Назад в меню
-                </button>
+    <!-- Настройки -->
+    <div id="settings-screen" class="screen overlay">
+        <div class="settings-menu">
+            <h2>Настройки</h2>
+            <div class="setting-group">
+                <label>Звук</label>
+                <input type="range" id="volume-slider" min="0" max="100" value="50">
             </div>
+            <div class="setting-group">
+                <label>Чувствительность мыши</label>
+                <input type="range" id="mouse-sens" min="1" max="10" value="5">
+            </div>
+            <div class="setting-group">
+                <label>Качество графики</label>
+                <select id="graphics-quality">
+                    <option value="low">Низкое</option>
+                    <option value="medium" selected>Среднее</option>
+                    <option value="high">Высокое</option>
+                </select>
+            </div>
+            <button id="save-settings" class="doom-btn primary">Сохранить</button>
+            <button id="close-settings" class="doom-btn">Закрыть</button>
         </div>
     </div>
 
-    <!-- Модальные окна -->
-    <div id="modal-overlay" class="modal-overlay">
-        <div class="modal-content pixel-box">
-            <div class="modal-header">
-                <h3 class="modal-title"></h3>
-                <button class="modal-close">×</button>
-            </div>
-            <div class="modal-body"></div>
-            <div class="modal-footer">
-                <button class="pixel-button modal-ok">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Всплывающие уведомления -->
-    <div id="notifications-container"></div>
-
-    <!-- Основной скрипт -->
-    <script src="game.js"></script>
+    <script src="doom.js"></script>
 </body>
 </html> 

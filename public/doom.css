@@ -1,0 +1,521 @@
+/* nFactorial DOOM - Стили */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Orbitron', monospace;
+    background: #000;
+    color: #ff0000;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Общие экраны */
+.screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    background: linear-gradient(45deg, #0a0a0a, #1a0000);
+}
+
+.screen.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.screen.overlay {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+}
+
+/* Экран загрузки */
+#loading-screen {
+    justify-content: center;
+    align-items: center;
+    background: #000;
+}
+
+.doom-logo {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.doom-logo h1 {
+    font-size: 4rem;
+    font-weight: 900;
+    color: #ff0000;
+    text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+    letter-spacing: 8px;
+    margin-bottom: 10px;
+}
+
+.doom-logo h2 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #ffaa00;
+    text-shadow: 0 0 15px #ffaa00;
+    letter-spacing: 12px;
+}
+
+.loading-bar {
+    width: 400px;
+    height: 20px;
+    background: #333;
+    border: 2px solid #ff0000;
+    position: relative;
+    margin: 20px auto;
+}
+
+.loading-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #ff0000, #ffaa00);
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px #ff0000;
+}
+
+.loading-text {
+    color: #ccc;
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 20px;
+}
+
+/* Главное меню */
+#menu-screen {
+    justify-content: center;
+    align-items: center;
+}
+
+.doom-menu {
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    padding: 40px;
+}
+
+.menu-logo h1 {
+    font-size: 3rem;
+    color: #ff0000;
+    text-shadow: 0 0 20px #ff0000;
+    margin-bottom: 10px;
+}
+
+.menu-logo p {
+    color: #ccc;
+    font-size: 1.1rem;
+    margin-bottom: 40px;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.doom-btn {
+    background: linear-gradient(45deg, #330000, #660000);
+    border: 2px solid #ff0000;
+    color: #ff0000;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.1rem;
+    padding: 15px 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+}
+
+.doom-btn:hover {
+    background: linear-gradient(45deg, #660000, #990000);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+
+.doom-btn.primary {
+    background: linear-gradient(45deg, #ff0000, #ff3333);
+    color: #000;
+    font-weight: bold;
+}
+
+.doom-btn.danger {
+    background: linear-gradient(45deg, #660000, #330000);
+    border-color: #ffaa00;
+    color: #ffaa00;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #333;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.avatar-display img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #ff0000;
+}
+
+.player-stats p {
+    margin: 5px 0;
+    color: #ccc;
+}
+
+/* Игровой экран */
+#game-screen {
+    position: relative;
+}
+
+#doom-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* HUD интерфейс */
+.doom-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.hud-stats {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.stat-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 15px;
+    border: 1px solid #333;
+    min-width: 200px;
+}
+
+.stat-icon {
+    font-size: 1.2rem;
+    width: 20px;
+}
+
+.stat-progress {
+    flex: 1;
+    height: 15px;
+    background: #333;
+    border: 1px solid #666;
+    position: relative;
+}
+
+.stat-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.stat-progress.health .stat-fill {
+    background: linear-gradient(90deg, #ff0000, #ff6666);
+}
+
+.stat-progress.armor .stat-fill {
+    background: linear-gradient(90deg, #0066ff, #6666ff);
+}
+
+.stat-progress.ammo .stat-fill {
+    background: linear-gradient(90deg, #ffaa00, #ffdd66);
+}
+
+.stat-value {
+    color: #fff;
+    font-weight: bold;
+    min-width: 30px;
+    text-align: right;
+}
+
+/* Прицел */
+.crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #00ff00;
+    font-size: 2rem;
+    font-weight: bold;
+    text-shadow: 0 0 10px #00ff00;
+    pointer-events: none;
+}
+
+/* Мини-карта */
+.minimap {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    border: 2px solid #ff0000;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+#minimap-canvas {
+    display: block;
+}
+
+/* Мобильные элементы управления */
+.mobile-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    pointer-events: none;
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: block;
+    }
+}
+
+.joystick-container {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    width: 120px;
+    height: 120px;
+    pointer-events: all;
+}
+
+.joystick {
+    width: 100%;
+    height: 100%;
+    border: 3px solid #ff0000;
+    border-radius: 50%;
+    background: rgba(255, 0, 0, 0.1);
+    position: relative;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+.joystick-knob {
+    width: 40px;
+    height: 40px;
+    background: #ff0000;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px #ff0000;
+    transition: all 0.1s ease;
+}
+
+.action-buttons {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    pointer-events: all;
+}
+
+.action-btn {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #ff0000;
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    font-size: 1.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+}
+
+.action-btn:active {
+    background: rgba(255, 0, 0, 0.5);
+    transform: scale(0.95);
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.8);
+}
+
+/* Диалоговое окно */
+.dialogue-box {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #ff0000;
+    padding: 20px;
+    display: none;
+    pointer-events: all;
+}
+
+.dialogue-box.active {
+    display: block;
+}
+
+.dialogue-content {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.npc-portrait img {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #ff0000;
+    border-radius: 10px;
+}
+
+.dialogue-text {
+    flex: 1;
+}
+
+.dialogue-text h3 {
+    color: #ff0000;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+.dialogue-text p {
+    color: #ccc;
+    line-height: 1.4;
+    margin-bottom: 15px;
+}
+
+.dialogue-continue {
+    background: #ff0000;
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: 'Orbitron', monospace;
+    font-weight: bold;
+}
+
+/* Уведомления */
+.notifications {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.notification {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #ff0000;
+    color: #ff0000;
+    padding: 15px 25px;
+    margin: 10px 0;
+    text-align: center;
+    animation: notification-appear 3s ease-in-out;
+}
+
+@keyframes notification-appear {
+    0%, 100% { opacity: 0; transform: translateY(-20px); }
+    10%, 90% { opacity: 1; transform: translateY(0); }
+}
+
+/* Меню паузы и настроек */
+.pause-menu, .settings-menu {
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #ff0000;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+}
+
+.pause-menu h2, .settings-menu h2 {
+    color: #ff0000;
+    margin-bottom: 30px;
+    font-size: 2rem;
+}
+
+.setting-group {
+    margin: 20px 0;
+    text-align: left;
+}
+
+.setting-group label {
+    display: block;
+    color: #ccc;
+    margin-bottom: 10px;
+}
+
+.setting-group input, .setting-group select {
+    width: 100%;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #666;
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .doom-logo h1 {
+        font-size: 2.5rem;
+    }
+    
+    .doom-logo h2 {
+        font-size: 2rem;
+    }
+    
+    .loading-bar {
+        width: 300px;
+    }
+    
+    .hud-stats {
+        top: 10px;
+        left: 10px;
+    }
+    
+    .stat-bar {
+        min-width: 150px;
+        padding: 6px 10px;
+    }
+    
+    .minimap {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .dialogue-box {
+        bottom: 200px;
+    }
+} 
