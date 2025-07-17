@@ -84,6 +84,19 @@ class NFactorialDoom {
         // Интервалы для автоспавна
         this.spawnInterval = null;
         
+        // Массивы игровых сущностей
+        this.bullets = [];
+        this.sounds = {
+            gun: new Audio('/sounds/gun.wav'),
+            hurt: new Audio('/sounds/hurt.wav'),
+            enemy_chase: new Audio('/sounds/enemy_chase.wav')
+        };
+        
+        // Система изображений врагов
+        this.enemyImages = {};
+        this.imagesLoaded = false;
+        this.loadEnemyImages();
+        
         // Canvas и контекст
         this.canvas = null;
         this.ctx = null;
@@ -101,17 +114,12 @@ class NFactorialDoom {
         this.dialogue = { active: false, npc: null, messageIndex: 0 };
         
         // === СИСТЕМА ЗВУКОВ ===
-        this.sounds = {
-            gun: null,
-            hurt: null
-        };
         this.audioManager = {
             enabled: true,
             volume: 0.5
         };
         
         // === СИСТЕМА ПУЛЬ/ПАТРОНОВ ===
-        this.bullets = []; // Массив летящих пуль
         this.bulletSpeed = 0.15; // Скорость полета пули
         this.bulletLifetime = 2000; // Время жизни пули в мс
         
@@ -121,6 +129,20 @@ class NFactorialDoom {
     // Инициализация
     async init() {
         console.log('🎮 Инициализация nFactorial DOOM...');
+        
+        // Добавляем глобальную функцию для отладки
+        window.debugImages = () => this.checkImageStatus();
+        window.testDeadlineImage = () => {
+            const img = this.enemyImages['deadline'];
+            if (img) {
+                console.log('🧪 Тестовая отрисовка deadline.png на canvas...');
+                this.ctx.drawImage(img, 100, 100, 64, 64);
+                console.log('✅ Тест завершен - должно появиться изображение в левом верхнем углу');
+            } else {
+                console.log('❌ deadline изображение не найдено!');
+            }
+        };
+        console.log('🔧 Добавлены функции window.debugImages() и window.testDeadlineImage() для отладки');
         
         try {
             // Инициализация Telegram
@@ -635,6 +657,11 @@ class NFactorialDoom {
         
         // Показать уведомление
         this.showNotification('Добро пожаловать в nFactorial DOOM!', 'info');
+        
+        // Проверка статуса изображений через 3 секунды
+        setTimeout(() => {
+            this.checkImageStatus();
+        }, 3000);
     }
 
     // Инициализация canvas
@@ -1097,9 +1124,9 @@ class NFactorialDoom {
     // Рендеринг спрайтов
     renderSprites() {
         const sprites = [
-            ...this.npcs.map(npc => ({ ...npc, type: 'npc' })),
-            ...this.enemies.filter(enemy => enemy.health > 0).map(enemy => ({ ...enemy, type: 'enemy' })),
-            ...this.items.map(item => ({ ...item, type: 'item' }))
+            ...this.npcs.map(npc => ({ ...npc, category: 'npc', type: 'npc' })),
+            ...this.enemies.filter(enemy => enemy.health > 0).map(enemy => ({ ...enemy, category: 'enemy' })),
+            ...this.items.map(item => ({ ...item, category: 'item', type: 'item' }))
         ];
         
         // Сортировка по расстоянию (дальние первыми)
@@ -1141,11 +1168,69 @@ class NFactorialDoom {
         const spriteSize = (this.canvas.height / distance) * 0.3;
         const screenY = (this.canvas.height / 2) - spriteSize / 2;
         
-        // Рендер спрайта как текст
-        this.ctx.font = `${spriteSize}px Arial`;
-        this.ctx.textAlign = 'center';
-        this.ctx.fillStyle = distance > 3 ? '#888' : '#fff';
-        this.ctx.fillText(sprite.sprite, screenX, screenY + spriteSize);
+        // Рендер спрайта - изображение или эмодзи
+        this.renderSpriteImage(sprite, screenX, screenY, spriteSize, distance);
+    }
+
+    // Рендеринг спрайта с изображением или эмодзи fallback
+    renderSpriteImage(sprite, screenX, screenY, spriteSize, distance) {
+        // Определяем тип спрайта для поиска изображения
+        let spriteType = null;
+        if (sprite.type) {
+            spriteType = sprite.type; // Для врагов
+        } else if (sprite.id && sprite.id.includes('npc')) {
+            spriteType = 'npc'; // Для NPC (можно добавить отдельные изображения)
+        }
+        
+        // Проверяем есть ли загруженное изображение
+        const img = this.enemyImages[spriteType];
+        const hasImage = spriteType && 
+                         img && 
+                         img.complete && 
+                         img.naturalWidth > 0;
+        
+        // УСИЛЕННАЯ ОТЛАДКА - показываем информацию чаще
+        if (spriteType === 'deadline' && Math.random() < 0.1) {
+            console.log(`🔍 Рендер спрайта ${spriteType}:`, {
+                spriteId: sprite.id,
+                spriteType: spriteType,
+                hasImage: hasImage,
+                imgExists: !!img,
+                complete: img?.complete,
+                naturalWidth: img?.naturalWidth,
+                naturalHeight: img?.naturalHeight,
+                path: img?.src,
+                imagesLoaded: this.imagesLoaded,
+                enemyImagesKeys: Object.keys(this.enemyImages)
+            });
+        }
+        
+        if (hasImage) {
+            // Рендерим PNG изображение
+            console.log(`🖼️ РЕНДЕРИМ PNG для ${spriteType}! Размер: ${spriteSize}px`);
+            
+            // Применяем затемнение для далеких объектов
+            const alpha = distance > 3 ? 0.6 : 1.0;
+            this.ctx.globalAlpha = alpha;
+            
+            // Центрируем изображение
+            const imgX = screenX - spriteSize / 2;
+            const imgY = screenY;
+            
+            this.ctx.drawImage(img, imgX, imgY, spriteSize, spriteSize);
+            
+            // Восстанавливаем альфа
+            this.ctx.globalAlpha = 1.0;
+        } else {
+            // Fallback на эмодзи
+            if (spriteType === 'deadline') {
+                console.log(`❌ PNG НЕ НАЙДЕН для ${spriteType}, используем эмодзи fallback`);
+            }
+            this.ctx.font = `${spriteSize}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = distance > 3 ? '#888' : '#fff';
+            this.ctx.fillText(sprite.sprite, screenX, screenY + spriteSize);
+        }
     }
 
     // Рендеринг мини-карты
@@ -1180,8 +1265,8 @@ class NFactorialDoom {
         
         // Врагии НПС
         [...this.npcs, ...this.enemies, ...this.items].forEach(entity => {
-            this.minimapCtx.fillStyle = entity.type === 'enemy' ? '#f00' : 
-                                       entity.type === 'npc' ? '#ff0' : '#0ff';
+            this.minimapCtx.fillStyle = entity.health !== undefined && entity.sprite && !entity.description ? '#f00' : 
+                                       entity.name ? '#ff0' : '#0ff';
             this.minimapCtx.fillRect(
                 entity.x * scale - 1,
                 entity.y * scale - 1,
@@ -1567,8 +1652,8 @@ class NFactorialDoom {
 
     // Спавн случайного врага
     spawnRandomEnemy() {
-        // Не спавним если уже много врагов на карте
-        if (this.enemies.length >= 6) {
+        // Не спавним если уже много врагов на карте (увеличено в 3 раза!)
+        if (this.enemies.length >= 18) {
             console.log('👹 Слишком много врагов на карте, спавн отменен');
             return;
         }
@@ -1770,6 +1855,67 @@ class NFactorialDoom {
         }
         
         return true; // Путь свободен
+    }
+
+    // Загрузка изображений врагов
+    loadEnemyImages() {
+        const enemyTypes = ['bug', 'deadline'];
+        let loadedCount = 0;
+        
+        console.log('🔄 Начинаем загрузку изображений врагов...');
+        
+        enemyTypes.forEach(type => {
+            const img = new Image();
+            // Используем deadline.png для обоих типов врагов
+            const imageName = type === 'bug' ? 'bug' : 'deadline';
+            const imagePath = `./images/enemies/${imageName}.png`;
+            
+            img.onload = () => {
+                loadedCount++;
+                console.log(`✅ Загружено изображение: ${imagePath} (${img.width}x${img.height})`);
+                if (loadedCount === enemyTypes.length) {
+                    this.imagesLoaded = true;
+                    console.log('🎨 Все изображения врагов загружены!');
+                    console.log('🔄 Изображения готовы к использованию');
+                }
+            };
+            img.onerror = (e) => {
+                console.log(`❌ Ошибка загрузки: ${imagePath}`, e);
+                console.log(`❌ Используем эмодзи для ${type}`);
+                loadedCount++;
+                if (loadedCount === enemyTypes.length) {
+                    this.imagesLoaded = true;
+                }
+            };
+            
+            console.log(`🔄 Загружаем: ${imagePath}`);
+            // Пробуем разные варианты пути
+            img.src = `images/enemies/${imageName}.png`;
+            this.enemyImages[type] = img;
+        });
+    }
+
+    // Проверка статуса загрузки изображений (для отладки)
+    checkImageStatus() {
+        console.log('📊 Статус изображений врагов:');
+        console.log('📊 enemyImages object:', this.enemyImages);
+        console.log('📊 imagesLoaded flag:', this.imagesLoaded);
+        
+        Object.keys(this.enemyImages).forEach(type => {
+            const img = this.enemyImages[type];
+            console.log(`  ${type}: loaded=${img.complete}, size=${img.naturalWidth}x${img.naturalHeight}, src=${img.src}`);
+            console.log(`     error occurred:`, img.onerror ? 'да' : 'нет');
+        });
+        
+        // Тест для deadline изображения
+        const deadlineImg = this.enemyImages['deadline'];
+        if (deadlineImg) {
+            console.log('🎯 Тест deadline изображения:');
+            console.log('  complete:', deadlineImg.complete);
+            console.log('  naturalWidth:', deadlineImg.naturalWidth);
+            console.log('  naturalHeight:', deadlineImg.naturalHeight);
+            console.log('  src:', deadlineImg.src);
+        }
     }
 
     // Проверка, является ли клетка стеной
