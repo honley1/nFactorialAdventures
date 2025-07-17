@@ -1,160 +1,257 @@
 const mongoose = require('mongoose');
 
+// Схема пользователя игры nFactorial Adventures
 const userSchema = new mongoose.Schema({
+  // Telegram данные
   telegramId: {
-    type: Number,
+    type: String,
     required: true,
-    unique: true
+    unique: true,
+    index: true
   },
   username: {
     type: String,
     required: true,
     trim: true,
-    minlength: 3,
-    maxlength: 20
+    maxlength: 50
   },
-  firstName: String,
-  lastName: String,
   avatar: {
     type: String,
-    default: 'student1',
+    required: true,
     enum: ['student1', 'student2', 'student3', 'mentor1', 'mentor2']
   },
   
-  // Game Stats
+  // Игровой прогресс
   level: {
     type: Number,
     default: 1,
     min: 1,
     max: 10
   },
-  totalScore: {
+  experience: {
     type: Number,
     default: 0,
     min: 0
   },
-  weeksPassed: {
+  currentWeek: {
     type: Number,
-    default: 0,
-    min: 0,
+    default: 1,
+    min: 1,
     max: 10
   },
   
-  // Resources
-  coffee: {
-    type: Number,
-    default: 100,
-    min: 0,
-    max: 100
-  },
-  motivation: {
-    type: Number,
-    default: 100,
-    min: 0,
-    max: 100
-  },
-  knowledge: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100
-  },
-  sleep: {
-    type: Number,
-    default: 100,
-    min: 0,
-    max: 100
-  },
-  
-  // Progress
-  projectsCompleted: {
-    type: Number,
-    default: 0
-  },
-  interviewsPassed: {
-    type: Number,
-    default: 0
-  },
-  mentorInteractions: {
-    type: Number,
-    default: 0
-  },
-  coffeeConsumed: {
-    type: Number,
-    default: 0
-  },
-  
-  // Achievements
-  achievements: [{
-    name: String,
-    unlockedAt: Date,
-    description: String
-  }],
-  
-  // Game State
-  currentPosition: {
-    x: {
+  // Игровая статистика
+  stats: {
+    totalPlayTime: {
       type: Number,
-      default: 400
+      default: 0 // в минутах
     },
-    y: {
+    questsCompleted: {
       type: Number,
-      default: 300
+      default: 0
+    },
+    interactionsCount: {
+      type: Number,
+      default: 0
+    },
+    npcDialogues: {
+      type: Number,
+      default: 0
+    },
+    coffeeCupsConsumed: {
+      type: Number,
+      default: 0
+    },
+    codingSessionsCompleted: {
+      type: Number,
+      default: 0
     }
   },
-  lastActive: {
-    type: Date,
-    default: Date.now
+  
+  // Разблокированные достижения
+  achievementsUnlocked: [{
+    achievementId: String,
+    unlockedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
+  // Завершенные квесты
+  completedQuests: [{
+    questId: String,
+    completedAt: {
+      type: Date,
+      default: Date.now
+    },
+    reward: {
+      experience: Number,
+      resources: mongoose.Schema.Types.Mixed
+    }
+  }],
+  
+  // Настройки игрока
+  settings: {
+    soundEnabled: {
+      type: Boolean,
+      default: true
+    },
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    theme: {
+      type: String,
+      default: 'dark',
+      enum: ['light', 'dark', 'auto']
+    },
+    language: {
+      type: String,
+      default: 'ru',
+      enum: ['ru', 'en', 'kz']
+    }
   },
   
-  // Meta
+  // Система титулов и рангов
+  titles: [{
+    name: String,
+    earnedAt: Date,
+    isActive: Boolean
+  }],
+  
+  // Рейтинг и очки
+  score: {
+    total: {
+      type: Number,
+      default: 0
+    },
+    weekly: {
+      type: Number,
+      default: 0
+    },
+    lastWeeklyReset: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  
+  // Метки времени
   createdAt: {
     type: Date,
     default: Date.now
   },
-  updatedAt: {
+  lastPlayed: {
+    type: Date,
+    default: Date.now
+  },
+  lastWeekUpdate: {
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true, // автоматические createdAt и updatedAt
+  collection: 'users'
 });
 
-// Update the updatedAt field before saving
+// Индексы для производительности
+userSchema.index({ 'score.total': -1 }); // для лидерборда
+userSchema.index({ currentWeek: 1 }); // для прогрессии
+userSchema.index({ lastPlayed: -1 }); // для активности
+
+// Виртуальные поля
+userSchema.virtual('isNewPlayer').get(function() {
+  return this.currentWeek === 1 && this.experience < 100;
+});
+
+userSchema.virtual('completionPercentage').get(function() {
+  return Math.min(100, (this.currentWeek / 10) * 100);
+});
+
+// Методы модели
+userSchema.methods.addExperience = function(amount) {
+  this.experience += amount;
+  
+  // Проверка повышения уровня
+  const requiredExp = this.level * 1000; // 1000 опыта на уровень
+  if (this.experience >= requiredExp && this.level < 10) {
+    this.level += 1;
+    return { levelUp: true, newLevel: this.level };
+  }
+  
+  return { levelUp: false };
+};
+
+userSchema.methods.addScore = function(points) {
+  this.score.total += points;
+  this.score.weekly += points;
+};
+
+userSchema.methods.unlockAchievement = function(achievementId) {
+  const alreadyUnlocked = this.achievementsUnlocked.some(
+    achievement => achievement.achievementId === achievementId
+  );
+  
+  if (!alreadyUnlocked) {
+    this.achievementsUnlocked.push({
+      achievementId,
+      unlockedAt: new Date()
+    });
+    return true;
+  }
+  
+  return false;
+};
+
+userSchema.methods.completeQuest = function(questId, reward) {
+  this.completedQuests.push({
+    questId,
+    completedAt: new Date(),
+    reward
+  });
+  
+  this.stats.questsCompleted += 1;
+  
+  if (reward.experience) {
+    return this.addExperience(reward.experience);
+  }
+  
+  return { levelUp: false };
+};
+
+// Статические методы
+userSchema.statics.getLeaderboard = function(limit = 10) {
+  return this.find({})
+    .sort({ 'score.total': -1 })
+    .limit(limit)
+    .select('username avatar score.total currentWeek level')
+    .lean();
+};
+
+userSchema.statics.getWeeklyLeaderboard = function(limit = 10) {
+  return this.find({})
+    .sort({ 'score.weekly': -1 })
+    .limit(limit)
+    .select('username avatar score.weekly currentWeek level')
+    .lean();
+};
+
+// Middleware перед сохранением
 userSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  // Обновляем lastPlayed при каждом сохранении
+  this.lastPlayed = new Date();
+  
+  // Сброс еженедельных очков (каждые 7 дней)
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  
+  if (this.score.lastWeeklyReset < weekAgo) {
+    this.score.weekly = 0;
+    this.score.lastWeeklyReset = new Date();
+  }
+  
   next();
 });
 
-// Virtual for full name
-userSchema.virtual('fullName').get(function() {
-  return this.firstName && this.lastName ? 
-    `${this.firstName} ${this.lastName}` : 
-    this.username;
-});
+const User = mongoose.model('User', userSchema);
 
-// Method to calculate player rank
-userSchema.methods.calculateRank = function() {
-  const ranks = [
-    { min: 0, title: 'Новичок 🌱', color: '#90EE90' },
-    { min: 100, title: 'Студент 📚', color: '#87CEEB' },
-    { min: 500, title: 'Кодер 💻', color: '#DDA0DD' },
-    { min: 1000, title: 'Разработчик 🚀', color: '#FFB6C1' },
-    { min: 2000, title: 'Тимлид 👑', color: '#FFD700' },
-    { min: 5000, title: 'Архитектор 🏗️', color: '#FF6347' },
-    { min: 10000, title: 'CTO 🔥', color: '#FF1493' }
-  ];
-  
-  for (let i = ranks.length - 1; i >= 0; i--) {
-    if (this.totalScore >= ranks[i].min) {
-      return ranks[i];
-    }
-  }
-  return ranks[0];
-};
-
-// Method to check if user can level up
-userSchema.methods.canLevelUp = function() {
-  const requiredScore = this.level * 1000;
-  return this.totalScore >= requiredScore && this.level < 10;
-};
-
-module.exports = mongoose.model('User', userSchema); 
+module.exports = User; 

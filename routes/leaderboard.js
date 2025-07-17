@@ -1,207 +1,315 @@
 const express = require('express');
 const router = express.Router();
-
-// Временное хранилище лидерборда
-const leaderboard = new Map();
+const User = require('../models/User');
+const GameSession = require('../models/GameSession');
+const Achievement = require('../models/Achievement');
 
 // GET /api/leaderboard - Получить топ игроков
 router.get('/', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
+        const sortBy = req.query.sortBy || 'totalScore'; // totalScore, weekCompleted, fastestTime
         
-        // Имитация данных лидерборда
-        const mockLeaderboard = [
+        // Получаем всех игроков с их активными сессиями
+        const leaderboardData = await User.aggregate([
+            // Объединяем с игровыми сессиями
             {
-                id: '1',
-                username: 'AlmazCoder',
-                avatar: '💎',
-                totalScore: 9500,
-                highestWeekCompleted: 10,
-                fastestCompletion: 240 // минуты
+                $lookup: {
+                    from: 'gamesessions',
+                    localField: 'telegramId',
+                    foreignField: 'telegramId',
+                    as: 'sessions'
+                }
             },
+            // Добавляем вычисляемые поля
             {
-                id: '2',
-                username: 'ReactNinja',
-                avatar: '🥷',
-                totalScore: 8750,
-                highestWeekCompleted: 9,
-                fastestCompletion: 280
+                $addFields: {
+                    // Общий счет из всех сессий
+                    totalScore: {
+                        $sum: '$sessions.stats.totalScore'
+                    },
+                    // Максимальная завершенная неделя
+                    highestWeekCompleted: {
+                        $max: '$sessions.currentWeek'
+                    },
+                    // Лучшее время прохождения
+                    fastestCompletion: {
+                        $min: '$sessions.stats.fastestCompletion'
+                    },
+                    // Общее количество достижений
+                    totalAchievements: {
+                        $size: '$achievements'
+                    },
+                    // Активная сессия
+                    activeSession: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: '$sessions',
+                                    cond: { $eq: ['$$this.isActive', true] }
+                                }
+                            },
+                            0
+                        ]
+                    }
+                }
             },
+            // Проекция нужных полей
             {
-                id: '3',
-                username: 'JSMaster',
-                avatar: '👨‍💻',
-                totalScore: 8200,
-                highestWeekCompleted: 8,
-                fastestCompletion: 320
+                $project: {
+                    _id: 1,
+                    telegramId: 1,
+                    username: 1,
+                    firstName: 1,
+                    lastName: 1,
+                    avatar: 1,
+                    totalScore: 1,
+                    highestWeekCompleted: 1,
+                    fastestCompletion: 1,
+                    totalAchievements: 1,
+                    joinedAt: 1,
+                    resources: '$activeSession.resources',
+                    stats: '$activeSession.stats'
+                }
             },
+            // Сортировка
             {
-                id: '4',
-                username: 'CoffeeAddict',
-                avatar: '☕',
-                totalScore: 7800,
-                highestWeekCompleted: 8,
-                fastestCompletion: 350
+                $sort: getSortCriteria(sortBy)
             },
+            // Лимит
             {
-                id: '5',
-                username: 'NightCoder',
-                avatar: '🌙',
-                totalScore: 7200,
-                highestWeekCompleted: 7,
-                fastestCompletion: 400
+                $limit: limit
             }
-        ];
-        
-        const topPlayers = mockLeaderboard
-            .slice(0, limit)
-            .map((player, index) => ({
-                ...player,
-                rank: index + 1
-            }));
-        
+        ]);
+
+        // Добавляем позиции
+        const leaderboard = leaderboardData.map((player, index) => ({
+            position: index + 1,
+            id: player._id,
+            telegramId: player.telegramId,
+            username: player.username || player.firstName || 'Анонимный игрок',
+            firstName: player.firstName,
+            lastName: player.lastName,
+            avatar: player.avatar || '🎮',
+            totalScore: player.totalScore || 0,
+            highestWeekCompleted: player.highestWeekCompleted || 0,
+            fastestCompletion: player.fastestCompletion || null,
+            totalAchievements: player.totalAchievements || 0,
+            joinedAt: player.joinedAt,
+            resources: player.resources,
+            stats: player.stats
+        }));
+
         res.json({
             success: true,
-            leaderboard: topPlayers,
-            totalPlayers: mockLeaderboard.length
+            leaderboard,
+            meta: {
+                total: leaderboard.length,
+                limit,
+                sortBy,
+                timestamp: new Date().toISOString()
+            }
         });
-        
+
     } catch (error) {
-        console.error('Get leaderboard error:', error);
+        console.error('❌ Leaderboard error:', error);
         res.status(500).json({
             success: false,
-            message: 'Ошибка при получении лидерборда'
+            error: 'Failed to load leaderboard',
+            message: error.message
         });
     }
 });
 
-// GET /api/leaderboard/user/:userId - Получить позицию пользователя
-router.get('/user/:userId', async (req, res) => {
+// GET /api/leaderboard/stats - Получить общую статистику
+router.get('/stats', async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        // Имитация позиции пользователя
-        const userPosition = {
-            rank: Math.floor(Math.random() * 100) + 1,
-            totalScore: Math.floor(Math.random() * 5000) + 1000,
-            weeklyRank: Math.floor(Math.random() * 50) + 1,
-            weeklyScore: Math.floor(Math.random() * 1000) + 100
+        const stats = await User.aggregate([
+            {
+                $lookup: {
+                    from: 'gamesessions',
+                    localField: 'telegramId',
+                    foreignField: 'telegramId',
+                    as: 'sessions'
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalPlayers: { $sum: 1 },
+                    activePlayers: {
+                        $sum: {
+                            $cond: [
+                                { $gt: [{ $size: { $filter: { input: '$sessions', cond: { $eq: ['$$this.isActive', true] } } } }, 0] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    averageScore: { $avg: { $sum: '$sessions.stats.totalScore' } },
+                    totalSessions: { $sum: { $size: '$sessions' } },
+                    maxWeekReached: { $max: { $max: '$sessions.currentWeek' } }
+                }
+            }
+        ]);
+
+        const result = stats[0] || {
+            totalPlayers: 0,
+            activePlayers: 0,
+            averageScore: 0,
+            totalSessions: 0,
+            maxWeekReached: 0
         };
-        
+
         res.json({
             success: true,
-            userPosition
+            stats: result,
+            timestamp: new Date().toISOString()
         });
-        
+
     } catch (error) {
-        console.error('Get user position error:', error);
+        console.error('❌ Leaderboard stats error:', error);
         res.status(500).json({
             success: false,
-            message: 'Ошибка при получении позиции пользователя'
+            error: 'Failed to load stats',
+            message: error.message
         });
     }
 });
 
-// GET /api/leaderboard/weekly - Получить недельный лидерборд
-router.get('/weekly', async (req, res) => {
+// GET /api/leaderboard/user/:telegramId - Получить позицию конкретного игрока
+router.get('/user/:telegramId', async (req, res) => {
     try {
-        const week = parseInt(req.query.week) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        
-        // Имитация недельного лидерборда
-        const weeklyLeaderboard = [
+        const { telegramId } = req.params;
+        const sortBy = req.query.sortBy || 'totalScore';
+
+        // Получаем всех игроков для определения позиции
+        const allPlayers = await User.aggregate([
             {
-                id: '1',
-                username: 'SpeedRunner',
-                avatar: '⚡',
-                weeklyScore: 950,
-                weekNumber: week,
-                completionTime: 45 // минуты
+                $lookup: {
+                    from: 'gamesessions',
+                    localField: 'telegramId',
+                    foreignField: 'telegramId',
+                    as: 'sessions'
+                }
             },
             {
-                id: '2',
-                username: 'Perfectionist',
-                avatar: '✨',
-                weeklyScore: 900,
-                weekNumber: week,
-                completionTime: 60
+                $addFields: {
+                    totalScore: { $sum: '$sessions.stats.totalScore' },
+                    highestWeekCompleted: { $max: '$sessions.currentWeek' },
+                    fastestCompletion: { $min: '$sessions.stats.fastestCompletion' }
+                }
             },
             {
-                id: '3',
-                username: 'Hustler',
-                avatar: '🔥',
-                weeklyScore: 850,
-                weekNumber: week,
-                completionTime: 55
+                $sort: getSortCriteria(sortBy)
             }
-        ];
-        
-        const topWeeklyPlayers = weeklyLeaderboard
-            .slice(0, limit)
-            .map((player, index) => ({
-                ...player,
-                rank: index + 1
-            }));
-        
-        res.json({
-            success: true,
-            weeklyLeaderboard: topWeeklyPlayers,
-            week,
-            totalPlayers: weeklyLeaderboard.length
-        });
-        
-    } catch (error) {
-        console.error('Get weekly leaderboard error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Ошибка при получении недельного лидерборда'
-        });
-    }
-});
+        ]);
 
-// POST /api/leaderboard/submit - Отправить результат
-router.post('/submit', async (req, res) => {
-    try {
-        const { userId, weekNumber, score, completionTime } = req.body;
+        const playerIndex = allPlayers.findIndex(p => p.telegramId === telegramId);
         
-        if (!userId || !weekNumber || !score) {
-            return res.status(400).json({
+        if (playerIndex === -1) {
+            return res.status(404).json({
                 success: false,
-                message: 'Обязательные поля: userId, weekNumber, score'
+                error: 'Player not found'
             });
         }
-        
-        // Имитация сохранения результата
-        const result = {
-            id: Date.now().toString(),
-            userId,
-            weekNumber,
-            score,
-            completionTime: completionTime || 0,
-            submittedAt: new Date()
-        };
-        
-        // Сохраняем в временное хранилище
-        leaderboard.set(`${userId}_${weekNumber}`, result);
-        
-        // Определяем новую позицию (имитация)
-        const newRank = Math.floor(Math.random() * 50) + 1;
-        
+
+        const player = allPlayers[playerIndex];
+        const position = playerIndex + 1;
+
         res.json({
             success: true,
-            message: 'Результат отправлен!',
-            result,
-            newRank,
-            scoreImprovement: Math.floor(Math.random() * 200) + 50
+            player: {
+                position,
+                telegramId: player.telegramId,
+                username: player.username || player.firstName || 'Анонимный игрок',
+                totalScore: player.totalScore || 0,
+                highestWeekCompleted: player.highestWeekCompleted || 0,
+                fastestCompletion: player.fastestCompletion || null
+            },
+            meta: {
+                totalPlayers: allPlayers.length,
+                sortBy
+            }
         });
-        
+
     } catch (error) {
-        console.error('Submit score error:', error);
+        console.error('❌ Player position error:', error);
         res.status(500).json({
             success: false,
-            message: 'Ошибка при отправке результата'
+            error: 'Failed to get player position',
+            message: error.message
         });
     }
 });
+
+// GET /api/leaderboard/achievements - Топ по достижениям
+router.get('/achievements', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+
+        const achievementLeaders = await User.aggregate([
+            {
+                $addFields: {
+                    achievementCount: { $size: '$achievements' }
+                }
+            },
+            {
+                $sort: { achievementCount: -1, joinedAt: 1 }
+            },
+            {
+                $limit: limit
+            },
+            {
+                $project: {
+                    telegramId: 1,
+                    username: 1,
+                    firstName: 1,
+                    avatar: 1,
+                    achievementCount: 1,
+                    achievements: 1
+                }
+            }
+        ]);
+
+        const leaderboard = achievementLeaders.map((player, index) => ({
+            position: index + 1,
+            telegramId: player.telegramId,
+            username: player.username || player.firstName || 'Анонимный игрок',
+            avatar: player.avatar || '🏆',
+            achievementCount: player.achievementCount,
+            achievements: player.achievements
+        }));
+
+        res.json({
+            success: true,
+            achievementLeaderboard: leaderboard,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Achievement leaderboard error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to load achievement leaderboard',
+            message: error.message
+        });
+    }
+});
+
+// Вспомогательная функция для получения критериев сортировки
+function getSortCriteria(sortBy) {
+    switch (sortBy) {
+        case 'weekCompleted':
+            return { highestWeekCompleted: -1, totalScore: -1 };
+        case 'fastestTime':
+            return { fastestCompletion: 1, totalScore: -1 };
+        case 'achievements':
+            return { totalAchievements: -1, totalScore: -1 };
+        case 'totalScore':
+        default:
+            return { totalScore: -1, highestWeekCompleted: -1 };
+    }
+}
 
 module.exports = router; 

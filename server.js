@@ -49,10 +49,20 @@ const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
 const leaderboardRoutes = require('./routes/leaderboard');
 
+// Import additional game endpoints
+const gameEndpoints = require('./utils/gameEndpoints');
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+
+// Additional game endpoints
+app.get('/api/game/resources/:sessionId', gameEndpoints.getResourceStatus);
+app.post('/api/game/action', gameEndpoints.performAction);
+app.post('/api/game/interact', gameEndpoints.interactWithObject);
+app.get('/api/game/time', gameEndpoints.getGameTime);
+app.post('/api/game/week/advance', gameEndpoints.advanceWeek);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -87,21 +97,21 @@ app.use((err, req, res, next) => {
 // Start server and bot
 const startServer = async () => {
     try {
-        // Запускаем Telegram бота
-        await startBot();
-        
-        // Запускаем Express сервер
+        // Запускаем Express сервер первым
         app.listen(PORT, () => {
             console.log('🎮 nFactorial Adventures Server');
             console.log(`🌐 Running on port ${PORT}`);
             console.log(`📱 Telegram Mini App: http://localhost:${PORT}`);
             console.log('🔗 Use ngrok for HTTPS: npx ngrok http 3000');
-            console.log('🤖 Telegram Bot: Running (Telegraf)');
+            console.log('🤖 Telegram Bot: Running');
             
             if (process.env.NODE_ENV === 'development') {
                 console.log('🔧 Development mode enabled');
             }
         });
+        
+        // Запускаем Telegram бота (неблокирующий запуск)
+        startBot();
         
     } catch (error) {
         console.error('❌ Failed to start server:', error);

@@ -1,439 +1,566 @@
 const mongoose = require('mongoose');
 
+// Схема достижения
 const achievementSchema = new mongoose.Schema({
-  // Achievement Info
-  name: {
+  // Основная информация
+  id: {
     type: String,
     required: true,
     unique: true,
-    trim: true
+    index: true
   },
-  title: {
+  name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   description: {
     type: String,
-    required: true,
-    maxlength: 200
-  },
-  icon: {
-    type: String,
-    default: '🏆'
-  },
-  
-  // Achievement Type
-  category: {
-    type: String,
-    enum: [
-      'first_steps',      // Первые шаги
-      'learning',         // Обучение
-      'projects',         // Проекты
-      'social',           // Социальные
-      'dedication',       // Преданность
-      'special',          // Специальные
-      'easter_eggs'       // Пасхалки
-    ],
     required: true
   },
   
-  rarity: {
+  // Визуальное представление
+  icon: {
     type: String,
-    enum: ['common', 'rare', 'epic', 'legendary'],
-    default: 'common'
+    required: true // эмодзи или путь к картинке
   },
   
-  // Unlock Conditions
-  requirements: {
-    // Resource thresholds
-    minScore: { type: Number, default: 0 },
-    minLevel: { type: Number, default: 0 },
-    minKnowledge: { type: Number, default: 0 },
+  // Условия разблокировки
+  conditions: {
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        'resource_threshold',    // достичь уровня ресурса
+        'quest_count',          // выполнить N квестов
+        'time_played',          // играть N времени
+        'interaction_count',    // N взаимодействий
+        'week_reached',         // достичь недели
+        'score_threshold',      // набрать очков
+        'sequence',             // выполнить последовательность
+        'social',               // социальные достижения
+        'endurance',            // выносливость
+        'special'               // особые условия
+      ]
+    },
     
-    // Activity requirements
-    projectsCompleted: { type: Number, default: 0 },
-    mentorInteractions: { type: Number, default: 0 },
-    coffeeConsumed: { type: Number, default: 0 },
-    daysActive: { type: Number, default: 0 },
-    
-    // Special conditions
-    specialConditions: [String], // Custom achievement logic
-    timeLimit: Number, // Complete within X hours/days
-    
-    // Combo requirements
-    comboActions: [{
-      action: String,
-      count: Number,
-      timeWindow: Number // within X minutes
+    // Параметры условий
+    parameters: {
+      // Для resource_threshold
+      resource: {
+        type: String,
+        enum: ['coffee', 'motivation', 'knowledge', 'sleep', 'any']
+      },
+      threshold: Number,
+      
+      // Для quest_count
+      questCategory: String, // категория квестов
+      questCount: Number,
+      
+      // Для time_played
+      timeRequired: Number, // в минутах
+      
+      // Для interaction_count
+      interactionType: String, // 'coffee_machine', 'npc_*', 'any'
+      interactionCount: Number,
+      
+      // Для week_reached
+      weekNumber: Number,
+      
+      // Для score_threshold
+      scoreRequired: Number,
+      scoreType: {
+        type: String,
+        enum: ['total', 'weekly', 'single_session'],
+        default: 'total'
+      },
+      
+      // Для sequence
+      sequence: [{
+        action: String,
+        target: String,
+        order: Number
+      }],
+      
+      // Для social
+      npcDialogues: Number,
+      uniqueNpcs: Number,
+      
+      // Для endurance
+      consecutiveDays: Number,
+      resourceMaintained: String, // какой ресурс держать на уровне
+      minimumLevel: Number,
+      
+      // Специальные условия
+      custom: mongoose.Schema.Types.Mixed
+    }
+  },
+  
+  // Награды за достижение
+  rewards: {
+    experience: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    score: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    title: {
+      type: String // титул игрока
+    },
+    badge: {
+      type: String // специальный значок
+    },
+    resources: {
+      coffee: { type: Number, default: 0 },
+      motivation: { type: Number, default: 0 },
+      knowledge: { type: Number, default: 0 },
+      sleep: { type: Number, default: 0 }
+    },
+    unlocks: [{
+      type: String // что разблокируется
     }]
   },
   
-  // Rewards
-  rewards: {
-    score: { type: Number, default: 0 },
-    title: String, // Unlocked title
-    badge: String, // Badge icon/name
-    unlocks: [String], // Features, areas, or content
-    motivation: { type: Number, default: 0 },
-    specialReward: String // Description of special reward
+  // Метаданные достижения
+  rarity: {
+    type: String,
+    enum: ['common', 'uncommon', 'rare', 'epic', 'legendary'],
+    default: 'common'
   },
   
-  // Progress tracking
-  isSecret: {
-    type: Boolean,
-    default: false // Hidden until unlocked
+  category: {
+    type: String,
+    enum: ['learning', 'social', 'endurance', 'mastery', 'exploration', 'special'],
+    required: true
   },
   
-  // Users who unlocked this achievement
-  unlockedBy: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    telegramId: Number,
-    unlockedAt: {
-      type: Date,
-      default: Date.now
-    },
-    progress: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 100
-    },
-    context: mongoose.Schema.Types.Mixed // Additional unlock context
+  // Теги
+  tags: [{
+    type: String
   }],
   
-  // Statistics
-  stats: {
-    totalUnlocks: { type: Number, default: 0 },
-    unlockRate: { type: Number, default: 0 }, // Percentage of players who unlocked
-    averageTimeToUnlock: { type: Number, default: 0 }, // Average hours to unlock
-    firstUnlockedAt: Date,
-    lastUnlockedAt: Date
+  // Секретное достижение (не показывается до разблокировки)
+  isSecret: {
+    type: Boolean,
+    default: false
   },
   
-  // Meta
   isActive: {
     type: Boolean,
     default: true
   },
-  sortOrder: {
+  
+  // Сообщения
+  unlockMessage: {
+    type: String,
+    required: true
+  },
+  
+  hintMessage: {
+    type: String // подсказка для секретных достижений
+  },
+  
+  // Статистика
+  stats: {
+    timesUnlocked: {
+      type: Number,
+      default: 0
+    },
+    firstUnlockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    firstUnlockedAt: Date,
+    rarity_percentage: {
+      type: Number,
+      default: 0 // процент игроков разблокировавших
+    }
+  },
+  
+  // Приоритет отображения
+  priority: {
     type: Number,
     default: 0
   },
   
-  createdAt: {
-    type: Date,
-    default: Date.now
+  // Создание
+  createdBy: {
+    type: String,
+    default: 'system'
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  
+  version: {
+    type: Number,
+    default: 1
   }
+}, {
+  timestamps: true,
+  collection: 'achievements'
 });
 
-// Indexes
+// Индексы
 achievementSchema.index({ category: 1, rarity: 1 });
-achievementSchema.index({ 'unlockedBy.userId': 1 });
-achievementSchema.index({ 'unlockedBy.telegramId': 1 });
-achievementSchema.index({ isActive: 1, sortOrder: 1 });
+achievementSchema.index({ isActive: 1, priority: -1 });
+achievementSchema.index({ 'conditions.type': 1 });
+achievementSchema.index({ tags: 1 });
 
-// Update stats before saving
-achievementSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  this.updateStats();
-  next();
+// Виртуальные поля
+achievementSchema.virtual('rarityScore').get(function() {
+  const rarityValues = {
+    common: 1,
+    uncommon: 2,
+    rare: 3,
+    epic: 4,
+    legendary: 5
+  };
+  return rarityValues[this.rarity] || 1;
 });
 
-// Method to update statistics
-achievementSchema.methods.updateStats = function() {
-  this.stats.totalUnlocks = this.unlockedBy.length;
+achievementSchema.virtual('isVeryRare').get(function() {
+  return this.stats.rarity_percentage < 5; // менее 5% игроков
+});
+
+// Методы модели
+achievementSchema.methods.checkConditions = function(user, gameSession, actionData = null) {
+  const condition = this.conditions;
+  const params = condition.parameters;
   
-  if (this.unlockedBy.length > 0) {
-    // Find first and last unlock dates
-    const unlockDates = this.unlockedBy.map(u => u.unlockedAt).sort();
-    this.stats.firstUnlockedAt = unlockDates[0];
-    this.stats.lastUnlockedAt = unlockDates[unlockDates.length - 1];
+  switch (condition.type) {
+    case 'resource_threshold':
+      if (params.resource === 'any') {
+        return Object.values(gameSession.resources).some(value => value >= params.threshold);
+      }
+      return gameSession.resources[params.resource] >= params.threshold;
+      
+    case 'quest_count':
+      let questCount = user.completedQuests.length;
+      if (params.questCategory) {
+        // Нужно проверить категорию квестов (требует доступ к Quest модели)
+        questCount = user.completedQuests.filter(cq => {
+          // Здесь должна быть логика проверки категории
+          return true; // временная заглушка
+        }).length;
+      }
+      return questCount >= params.questCount;
+      
+    case 'time_played':
+      return user.stats.totalPlayTime >= params.timeRequired;
+      
+    case 'interaction_count':
+      if (params.interactionType === 'any') {
+        return user.stats.interactionsCount >= params.interactionCount;
+      }
+      
+      // Проверяем специфичные взаимодействия
+      if (params.interactionType === 'coffee_machine') {
+        return user.stats.coffeeCupsConsumed >= params.interactionCount;
+      }
+      
+      if (params.interactionType.startsWith('npc_')) {
+        return user.stats.npcDialogues >= params.interactionCount;
+      }
+      
+      return false;
+      
+    case 'week_reached':
+      return user.currentWeek >= params.weekNumber;
+      
+    case 'score_threshold':
+      switch (params.scoreType) {
+        case 'total':
+          return user.score.total >= params.scoreRequired;
+        case 'weekly':
+          return user.score.weekly >= params.scoreRequired;
+        case 'single_session':
+          // Проверяется во время сессии
+          return actionData && actionData.sessionScore >= params.scoreRequired;
+        default:
+          return false;
+      }
+      
+    case 'sequence':
+      // Проверяем последовательность действий
+      if (!actionData || !actionData.recentActions) return false;
+      
+      const sequence = params.sequence.sort((a, b) => a.order - b.order);
+      const recentActions = actionData.recentActions.slice(-sequence.length);
+      
+      return sequence.every((step, index) => {
+        const action = recentActions[index];
+        return action && 
+               action.type === step.action && 
+               action.target === step.target;
+      });
+      
+    case 'social':
+      if (params.npcDialogues && user.stats.npcDialogues < params.npcDialogues) {
+        return false;
+      }
+      
+      if (params.uniqueNpcs) {
+        // Подсчет уникальных NPC (требует анализ истории действий)
+        const uniqueNpcs = new Set();
+        gameSession.actions.forEach(action => {
+          if (action.type === 'dialog' && action.target.startsWith('npc_')) {
+            uniqueNpcs.add(action.target);
+          }
+        });
+        return uniqueNpcs.size >= params.uniqueNpcs;
+      }
+      
+      return true;
+      
+    case 'endurance':
+      // Проверка выносливости (держать ресурс на уровне N дней подряд)
+      if (params.consecutiveDays && params.resourceMaintained && params.minimumLevel) {
+        // Это требует проверки истории ресурсов за несколько дней
+        // Временная заглушка
+        return gameSession.resources[params.resourceMaintained] >= params.minimumLevel;
+      }
+      return false;
+      
+    case 'special':
+      // Особые условия, обрабатываются отдельно
+      return this.checkSpecialConditions(user, gameSession, actionData);
+      
+    default:
+      return false;
   }
 };
 
-// Method to check if user can unlock achievement
-achievementSchema.methods.canUnlock = function(user, additionalData = {}) {
-  const req = this.requirements;
+achievementSchema.methods.checkSpecialConditions = function(user, gameSession, actionData) {
+  const params = this.conditions.parameters.custom;
   
-  // Check basic requirements
-  if (user.totalScore < req.minScore) return false;
-  if (user.level < req.minLevel) return false;
-  if (user.knowledge < req.minKnowledge) return false;
-  if (user.projectsCompleted < req.projectsCompleted) return false;
-  if (user.mentorInteractions < req.mentorInteractions) return false;
-  if (user.coffeeConsumed < req.coffeeConsumed) return false;
-  
-  // Check if already unlocked
-  const alreadyUnlocked = this.unlockedBy.some(u => u.telegramId === user.telegramId);
-  if (alreadyUnlocked) return false;
-  
-  // Check special conditions
-  if (req.specialConditions && req.specialConditions.length > 0) {
-    return this.checkSpecialConditions(user, additionalData);
+  // Примеры специальных условий
+  switch (this.id) {
+    case 'perfect_week':
+      // Неделя без падения ресурсов ниже 50
+      return gameSession.actions.filter(a => 
+        a.type === 'resource_change' && 
+        Object.values(a.resourcesAfter).every(val => val >= 50)
+      ).length > 50; // примерный порог
+      
+    case 'night_owl':
+      // Активность ночью
+      return gameSession.gameTime.period === 'night' && actionData;
+      
+    case 'early_bird':
+      // Активность утром
+      return gameSession.gameTime.period === 'morning' && actionData;
+      
+    case 'coffee_addict':
+      // Выпить кофе 10 раз за сессию
+      const coffeeActions = gameSession.actions.filter(a => 
+        a.type === 'interact' && a.target === 'coffee_machine'
+      );
+      return coffeeActions.length >= 10;
+      
+    default:
+      return false;
   }
-  
-  return true;
 };
 
-// Method to unlock achievement for user
-achievementSchema.methods.unlockForUser = function(user, context = {}) {
-  // Check if already unlocked
-  const existing = this.unlockedBy.find(u => u.telegramId === user.telegramId);
-  if (existing) return existing;
+achievementSchema.methods.getProgress = function(user, gameSession) {
+  const condition = this.conditions;
+  const params = condition.parameters;
   
-  const unlock = {
-    userId: user._id,
-    telegramId: user.telegramId,
-    unlockedAt: new Date(),
-    progress: 100,
-    context
-  };
+  let current = 0;
+  let target = 1;
   
-  this.unlockedBy.push(unlock);
+  switch (condition.type) {
+    case 'resource_threshold':
+      current = gameSession.resources[params.resource] || 0;
+      target = params.threshold;
+      break;
+      
+    case 'quest_count':
+      current = user.completedQuests.length;
+      target = params.questCount;
+      break;
+      
+    case 'time_played':
+      current = user.stats.totalPlayTime;
+      target = params.timeRequired;
+      break;
+      
+    case 'interaction_count':
+      if (params.interactionType === 'coffee_machine') {
+        current = user.stats.coffeeCupsConsumed;
+      } else if (params.interactionType.startsWith('npc_')) {
+        current = user.stats.npcDialogues;
+      } else {
+        current = user.stats.interactionsCount;
+      }
+      target = params.interactionCount;
+      break;
+      
+    case 'week_reached':
+      current = user.currentWeek;
+      target = params.weekNumber;
+      break;
+      
+    case 'score_threshold':
+      current = user.score.total;
+      target = params.scoreRequired;
+      break;
+      
+    default:
+      return { current: 0, target: 1, percentage: 0 };
+  }
   
-  // Update user's achievements
-  if (!user.achievements.some(a => a.name === this.name)) {
-    user.achievements.push({
-      name: this.name,
-      unlockedAt: new Date(),
-      description: this.description
+  const percentage = Math.min(100, (current / target) * 100);
+  return { current, target, percentage };
+};
+
+achievementSchema.methods.applyRewards = function(user, gameSession) {
+  const rewards = this.rewards;
+  const results = [];
+  
+  // Опыт
+  if (rewards.experience > 0) {
+    const levelResult = user.addExperience(rewards.experience);
+    results.push({ 
+      type: 'experience', 
+      amount: rewards.experience, 
+      levelUp: levelResult.levelUp 
     });
   }
   
-  return unlock;
-};
-
-// Method to check special conditions
-achievementSchema.methods.checkSpecialConditions = function(user, data) {
-  if (!this.requirements.specialConditions) return true;
-  
-  for (const condition of this.requirements.specialConditions) {
-    switch (condition) {
-      case 'first_day_completion':
-        // Check if user completed first day without going to zero resources
-        return data.firstDayCompleted && data.resourcesNeverZero;
-        
-      case 'night_owl':
-        // Active between 11 PM and 5 AM
-        const hour = new Date().getHours();
-        return hour >= 23 || hour <= 5;
-        
-      case 'early_bird':
-        // Active between 6 AM and 8 AM
-        const morningHour = new Date().getHours();
-        return morningHour >= 6 && morningHour <= 8;
-        
-      case 'weekend_warrior':
-        // Active on weekends
-        const day = new Date().getDay();
-        return day === 0 || day === 6;
-        
-      case 'perfect_week':
-        // Complete week without any failed projects
-        return data.perfectWeek === true;
-        
-      case 'social_butterfly':
-        // Interact with mentor 5 times in one session
-        return data.mentorInteractionsInSession >= 5;
-        
-      case 'coffee_addict':
-        // Consume 10 coffees in one hour
-        return data.coffeeInLastHour >= 10;
-        
-      case 'knowledge_seeker':
-        // Reach 100 knowledge without using mentor
-        return user.knowledge >= 100 && data.noMentorUsed;
-        
-      default:
-        return true;
-    }
+  // Очки
+  if (rewards.score > 0) {
+    user.addScore(rewards.score);
+    results.push({ type: 'score', amount: rewards.score });
   }
   
-  return true;
-};
-
-// Static method to create default nFactorial achievements
-achievementSchema.statics.createDefaultAchievements = async function() {
-  const defaultAchievements = [
-    // First Steps
-    {
-      name: 'first_login',
-      title: 'Добро пожаловать в nFactorial! 👋',
-      description: 'Войти в игру в первый раз',
-      icon: '🎯',
-      category: 'first_steps',
-      rarity: 'common',
-      requirements: { minScore: 0 },
-      rewards: { score: 50, motivation: 10 }
-    },
-    {
-      name: 'first_coffee',
-      title: 'Первый глоток ☕',
-      description: 'Выпить первую чашку кофе',
-      icon: '☕',
-      category: 'first_steps',
-      rarity: 'common',
-      requirements: { coffeeConsumed: 1 },
-      rewards: { score: 25 }
-    },
-    {
-      name: 'first_mentor_talk',
-      title: 'Знакомство с ментором 👨‍🏫',
-      description: 'Поговорить с ментором в первый раз',
-      icon: '🤝',
-      category: 'first_steps',
-      rarity: 'common',
-      requirements: { mentorInteractions: 1 },
-      rewards: { score: 75, motivation: 15 }
-    },
-    
-    // Learning
-    {
-      name: 'knowledge_100',
-      title: 'Знания - сила! 🧠',
-      description: 'Достичь 100 знаний',
-      icon: '🧠',
-      category: 'learning',
-      rarity: 'rare',
-      requirements: { minKnowledge: 100 },
-      rewards: { score: 200, title: 'Эрудит' }
-    },
-    {
-      name: 'level_5',
-      title: 'Середина пути 🎖️',
-      description: 'Достичь 5 уровня',
-      icon: '🎖️',
-      category: 'learning',
-      rarity: 'rare',
-      requirements: { minLevel: 5 },
-      rewards: { score: 500, unlocks: ['advanced_features'] }
-    },
-    
-    // Projects
-    {
-      name: 'first_project',
-      title: 'Первый проект 🚀',
-      description: 'Завершить первый проект',
-      icon: '🚀',
-      category: 'projects',
-      rarity: 'common',
-      requirements: { projectsCompleted: 1 },
-      rewards: { score: 100, motivation: 20 }
-    },
-    {
-      name: 'project_master',
-      title: 'Мастер проектов 🏆',
-      description: 'Завершить 10 проектов',
-      icon: '🏆',
-      category: 'projects',
-      rarity: 'epic',
-      requirements: { projectsCompleted: 10 },
-      rewards: { score: 1000, title: 'Проектный мастер', badge: 'master' }
-    },
-    
-    // Social
-    {
-      name: 'mentor_friend',
-      title: 'Друг ментора 👥',
-      description: 'Поговорить с ментором 50 раз',
-      icon: '👥',
-      category: 'social',
-      rarity: 'rare',
-      requirements: { mentorInteractions: 50 },
-      rewards: { score: 300, title: 'Любимчик ментора' }
-    },
-    
-    // Dedication
-    {
-      name: 'coffee_addict',
-      title: 'Кофеман ☕️',
-      description: 'Выпить 100 чашек кофе',
-      icon: '☕️',
-      category: 'dedication',
-      rarity: 'epic',
-      requirements: { coffeeConsumed: 100 },
-      rewards: { score: 500, title: 'Кофейный наркоман', specialReward: 'Unlimited coffee for a day' }
-    },
-    {
-      name: 'night_owl',
-      title: 'Сова 🦉',
-      description: 'Играть ночью (23:00-05:00)',
-      icon: '🦉',
-      category: 'dedication',
-      rarity: 'rare',
-      requirements: { specialConditions: ['night_owl'] },
-      rewards: { score: 200, title: 'Ночная сова' }
-    },
-    
-    // Special
-    {
-      name: 'perfect_week',
-      title: 'Идеальная неделя ⭐',
-      description: 'Пройти неделю без провалов',
-      icon: '⭐',
-      category: 'special',
-      rarity: 'legendary',
-      requirements: { specialConditions: ['perfect_week'] },
-      rewards: { score: 2000, title: 'Перфекционист', badge: 'perfect' }
-    },
-    {
-      name: 'nfactorial_legend',
-      title: 'Легенда nFactorial 👑',
-      description: 'Достичь максимального уровня',
-      icon: '👑',
-      category: 'special',
-      rarity: 'legendary',
-      requirements: { minLevel: 10, minScore: 10000 },
-      rewards: { score: 5000, title: 'Легенда nFactorial', badge: 'legend' }
-    },
-    
-    // Easter Eggs
-    {
-      name: 'konami_code',
-      title: 'Старая школа 🕹️',
-      description: 'Ввести код Konami',
-      icon: '🕹️',
-      category: 'easter_eggs',
-      rarity: 'rare',
-      requirements: { specialConditions: ['konami_code'] },
-      rewards: { score: 300, specialReward: 'Secret game mode unlocked' },
-      isSecret: true
-    }
-  ];
-  
-  for (const achievementData of defaultAchievements) {
-    const existing = await this.findOne({ name: achievementData.name });
-    if (!existing) {
-      await this.create(achievementData);
-    }
+  // Титул
+  if (rewards.title) {
+    user.titles.push({
+      name: rewards.title,
+      earnedAt: new Date(),
+      isActive: true
+    });
+    results.push({ type: 'title', name: rewards.title });
   }
+  
+  // Значок
+  if (rewards.badge) {
+    results.push({ type: 'badge', badge: rewards.badge });
+  }
+  
+  // Ресурсы
+  const resourceChanges = {};
+  Object.entries(rewards.resources).forEach(([resource, amount]) => {
+    if (amount !== 0) {
+      resourceChanges[resource] = amount;
+    }
+  });
+  
+  if (Object.keys(resourceChanges).length > 0) {
+    gameSession.updateResources(resourceChanges);
+    results.push({ type: 'resources', changes: resourceChanges });
+  }
+  
+  // Разблокировки
+  if (rewards.unlocks && rewards.unlocks.length > 0) {
+    rewards.unlocks.forEach(unlockId => {
+      results.push({ type: 'unlock', item: unlockId });
+    });
+  }
+  
+  return results;
 };
 
-// Static method to check and unlock achievements for user
-achievementSchema.statics.checkAndUnlockForUser = async function(user, additionalData = {}) {
-  const achievements = await this.find({ isActive: true });
-  const unlockedAchievements = [];
+// Статические методы
+achievementSchema.statics.checkAllAchievements = function(user, gameSession, actionData) {
+  return this.find({ isActive: true }).then(achievements => {
+    const unlockedAchievements = [];
+    
+    achievements.forEach(achievement => {
+      // Проверяем, не разблокировано ли уже
+      const alreadyUnlocked = user.achievementsUnlocked.some(
+        ua => ua.achievementId === achievement.id
+      );
+      
+      if (!alreadyUnlocked && achievement.checkConditions(user, gameSession, actionData)) {
+        unlockedAchievements.push(achievement);
+      }
+    });
+    
+    return unlockedAchievements;
+  });
+};
+
+achievementSchema.statics.getByCategory = function(category, includeSecret = false) {
+  const query = { category, isActive: true };
+  if (!includeSecret) {
+    query.isSecret = false;
+  }
   
-  for (const achievement of achievements) {
-    if (achievement.canUnlock(user, additionalData)) {
-      const unlock = achievement.unlockForUser(user, additionalData);
-      await achievement.save();
-      unlockedAchievements.push({
-        achievement,
-        unlock
+  return this.find(query).sort({ priority: -1, rarity: 1 });
+};
+
+achievementSchema.statics.getPlayerAchievements = function(user, includeProgress = false) {
+  const unlockedIds = user.achievementsUnlocked.map(ua => ua.achievementId);
+  
+  return this.find({ isActive: true }).then(achievements => {
+    const result = {
+      unlocked: achievements.filter(a => unlockedIds.includes(a.id)),
+      locked: achievements.filter(a => !unlockedIds.includes(a.id) && !a.isSecret)
+    };
+    
+    if (includeProgress) {
+      result.locked = result.locked.map(achievement => ({
+        ...achievement.toObject(),
+        progress: achievement.getProgress(user, gameSession)
+      }));
+    }
+    
+    return result;
+  });
+};
+
+achievementSchema.statics.updateRarityStats = function() {
+  // Обновляем статистику редкости всех достижений
+  return this.find({ isActive: true }).then(achievements => {
+    const User = mongoose.model('User');
+    
+    return User.countDocuments().then(totalUsers => {
+      if (totalUsers === 0) return;
+      
+      const updates = achievements.map(achievement => {
+        return User.countDocuments({
+          'achievementsUnlocked.achievementId': achievement.id
+        }).then(unlockedCount => {
+          const percentage = (unlockedCount / totalUsers) * 100;
+          
+          return this.updateOne(
+            { _id: achievement._id },
+            { 'stats.rarity_percentage': percentage }
+          );
+        });
       });
+      
+      return Promise.all(updates);
+    });
+  });
+};
+
+// Middleware
+achievementSchema.pre('save', function(next) {
+  // Обновляем статистику при разблокировке
+  if (this.isModified('stats.timesUnlocked')) {
+    if (this.stats.timesUnlocked === 1) {
+      this.stats.firstUnlockedAt = new Date();
     }
   }
   
-  return unlockedAchievements;
-};
+  next();
+});
 
-module.exports = mongoose.model('Achievement', achievementSchema); 
+const Achievement = mongoose.model('Achievement', achievementSchema);
+
+module.exports = Achievement; 

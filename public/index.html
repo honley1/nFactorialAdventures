@@ -3,211 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>nFactorial Adventures</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>nFactorial Adventures - The Ultimate Bootcamp Life Simulator</title>
+    
+    <!-- Telegram Mini App мета теги -->
+    <meta name="telegram-miniapp" content="true">
+    <meta name="theme-color" content="#1a1a1a">
+    
+    <!-- Pixel Art шрифты -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <!-- Красивый загрузочный экран -->
-    <div id="loading-screen" class="loading-screen">
-        <div class="loading-container">
-            <!-- Анимированный логотип -->
-            <div class="logo-animation">
-                <div class="logo-ring"></div>
-                <div class="logo-ring logo-ring-2"></div>
-                <div class="logo-center">
-                    <div class="logo-text">nF</div>
+    <!-- Пиксельный загрузочный экран -->
+    <div id="loading-screen" class="screen active">
+        <div class="pixel-sky">
+            <div class="cloud cloud-1"></div>
+            <div class="cloud cloud-2"></div>
+            <div class="cloud cloud-3"></div>
+        </div>
+        
+        <div class="loading-content">
+            <div class="nfactorial-logo">
+                <div class="logo-circle">
+                    <div class="logo-text">¡n!</div>
                 </div>
             </div>
             
-            <!-- Название игры -->
-            <h1 class="game-title">
-                <span class="title-main">nFactorial</span>
-                <span class="title-sub">Adventures</span>
-            </h1>
-            
-            <!-- Описание -->
-            <p class="loading-description">
-                Погрузись в мир буткемпа<br>
-                Стань легендарным разработчиком
-            </p>
-            
-            <!-- Прогресс бар -->
-            <div class="progress-container">
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                </div>
-                <div class="progress-text">Загружаем приключения...</div>
+            <div class="game-title">
+                <h1 class="pixel-title">nFactorial<br>Adventures</h1>
+                <p class="pixel-subtitle">The Ultimate Bootcamp Life Simulator</p>
             </div>
             
-            <!-- Дополнительные элементы -->
-            <div class="loading-particles">
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
+            <div class="pixel-landscape">
+                <div class="pixel-tree">
+                    <div class="tree-crown"></div>
+                    <div class="tree-trunk"></div>
+                </div>
+                <div class="pixel-character">
+                    <div class="character-head"></div>
+                    <div class="character-body"></div>
+                    <div class="character-legs"></div>
+                </div>
+                <div class="pixel-grass"></div>
+                <div class="pixel-ground"></div>
+            </div>
+            
+            <div class="loading-bar-container">
+                <div class="loading-text">Loading...</div>
+                <div class="loading-bar">
+                    <div class="loading-fill"></div>
+                </div>
+                <div class="loading-percentage">0%</div>
             </div>
         </div>
     </div>
 
-    <!-- Экран входа -->
-    <div id="login-screen" class="screen">
-        <div class="login-container">
-            <div class="game-header">
-                <div class="header-logo">
-                    <div class="mini-logo">nF</div>
-                </div>
-                <h2 class="header-title">Добро пожаловать!</h2>
-                <p class="header-subtitle">Создай своего персонажа</p>
-            </div>
-            
-            <div class="character-creation">
-                <div class="input-section">
-                    <label for="username" class="input-label">Твое имя в nFactorial:</label>
-                    <input type="text" id="username" class="game-input" placeholder="Введи имя..." maxlength="20">
-                    <div class="username-status" id="username-status"></div>
-                </div>
-                
-                <div class="avatar-section">
-                    <label class="input-label">Выбери аватар:</label>
-                    <div class="avatar-grid" id="avatar-grid">
-                        <div class="avatar-option" data-avatar="student1">🤓</div>
-                        <div class="avatar-option" data-avatar="student2">😎</div>
-                        <div class="avatar-option" data-avatar="student3">🧑‍💻</div>
-                        <div class="avatar-option" data-avatar="mentor1">👨‍🏫</div>
-                        <div class="avatar-option" data-avatar="mentor2">👩‍🏫</div>
-                    </div>
-                </div>
-                
-                <button id="start-game-btn" class="game-button primary" disabled>
-                    <span class="button-text">🚀 Начать приключение</span>
+    <!-- Экран авторизации -->
+    <div id="auth-screen" class="screen">
+        <div class="auth-content">
+            <div class="pixel-box">
+                <h2 class="pixel-heading">Добро пожаловать!</h2>
+                <p class="pixel-text">Начните своё приключение в nFactorial!</p>
+                <button id="auth-button" class="pixel-button">
+                    🚀 Войти через Telegram
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Основной игровой экран -->
+    <!-- Главное игровое меню -->
+    <div id="menu-screen" class="screen">
+        <div class="menu-content">
+            <div class="pixel-menu">
+                <h2 class="pixel-heading">Главное меню</h2>
+                <div class="menu-buttons">
+                    <button class="pixel-button menu-btn" data-action="start-game">
+                        🎮 Начать игру
+                    </button>
+                    <button class="pixel-button menu-btn" data-action="continue-game">
+                        ▶️ Продолжить
+                    </button>
+                    <button class="pixel-button menu-btn" data-action="leaderboard">
+                        🏆 Лидерборд
+                    </button>
+                    <button class="pixel-button menu-btn" data-action="settings">
+                        ⚙️ Настройки
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Игровой экран -->
     <div id="game-screen" class="screen">
-        <!-- Верхний UI -->
-        <div class="game-hud">
-            <div class="hud-left">
-                <div class="player-info">
-                    <div class="player-avatar" id="player-avatar">🤓</div>
-                    <div class="player-details">
-                        <div class="player-name" id="player-name">Player</div>
-                        <div class="player-level">Неделя <span id="current-week">1</span>/10</div>
+        <div class="game-ui">
+            <!-- Панель ресурсов -->
+            <div class="resource-panel">
+                <div class="resource-item">
+                    <span class="resource-icon">☕</span>
+                    <div class="resource-bar">
+                        <div class="resource-fill" id="coffee-bar"></div>
                     </div>
+                    <span class="resource-value" id="coffee-value">100</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">💪</span>
+                    <div class="resource-bar">
+                        <div class="resource-fill" id="motivation-bar"></div>
+                    </div>
+                    <span class="resource-value" id="motivation-value">100</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">🧠</span>
+                    <div class="resource-bar">
+                        <div class="resource-fill" id="knowledge-bar"></div>
+                    </div>
+                    <span class="resource-value" id="knowledge-value">0</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">😴</span>
+                    <div class="resource-bar">
+                        <div class="resource-fill" id="sleep-bar"></div>
+                    </div>
+                    <span class="resource-value" id="sleep-value">100</span>
                 </div>
             </div>
-            
-            <div class="hud-center">
-                <div class="location-info">
-                    <div class="location-name" id="location-name">Учебный класс</div>
-                </div>
+
+            <!-- Игровая область -->
+            <div class="game-area">
+                <canvas id="game-canvas" width="800" height="600"></canvas>
             </div>
-            
-            <div class="hud-right">
-                <button class="hud-button" id="menu-button">
-                    <span>⚙️</span>
+
+            <!-- Панель действий -->
+            <div class="action-panel">
+                <button class="pixel-button action-btn" data-action="code">
+                    💻 Кодить
+                </button>
+                <button class="pixel-button action-btn" data-action="coffee">
+                    ☕ Кофе
+                </button>
+                <button class="pixel-button action-btn" data-action="mentor">
+                    👨‍🏫 Ментор
+                </button>
+                <button class="pixel-button action-btn" data-action="rest">
+                    😴 Отдых
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- Ресурсы -->
-        <div class="resources-panel">
-            <div class="resource" data-type="coffee">
-                <div class="resource-icon">☕</div>
-                <div class="resource-bar">
-                    <div class="resource-fill" id="coffee-fill"></div>
+    <!-- Экран лидерборда -->
+    <div id="leaderboard-screen" class="screen">
+        <div class="leaderboard-content">
+            <div class="pixel-box">
+                <h2 class="pixel-heading">🏆 Лидерборд</h2>
+                <div class="leaderboard-list" id="leaderboard-list">
+                    <!-- Динамически заполняется -->
                 </div>
-                <div class="resource-value" id="coffee-value">100</div>
-            </div>
-            <div class="resource" data-type="motivation">
-                <div class="resource-icon">💪</div>
-                <div class="resource-bar">
-                    <div class="resource-fill" id="motivation-fill"></div>
-                </div>
-                <div class="resource-value" id="motivation-value">100</div>
-            </div>
-            <div class="resource" data-type="knowledge">
-                <div class="resource-icon">🧠</div>
-                <div class="resource-bar">
-                    <div class="resource-fill" id="knowledge-fill"></div>
-                </div>
-                <div class="resource-value" id="knowledge-value">0</div>
-            </div>
-            <div class="resource" data-type="sleep">
-                <div class="resource-icon">😴</div>
-                <div class="resource-bar">
-                    <div class="resource-fill" id="sleep-fill"></div>
-                </div>
-                <div class="resource-value" id="sleep-value">100</div>
-            </div>
-        </div>
-
-        <!-- Игровой мир -->
-        <div class="game-world">
-            <canvas id="game-canvas"></canvas>
-            
-            <!-- NPC диалоговая система -->
-            <div class="dialog-system" id="dialog-system">
-                <div class="dialog-box">
-                    <div class="dialog-npc">
-                        <div class="npc-avatar" id="dialog-npc-avatar"></div>
-                        <div class="npc-name" id="dialog-npc-name">Ментор</div>
-                    </div>
-                    <div class="dialog-content">
-                        <div class="dialog-text" id="dialog-text"></div>
-                        <div class="dialog-controls">
-                            <button class="dialog-button" id="dialog-continue">Продолжить</button>
-                            <button class="dialog-button secondary" id="dialog-skip">Пропустить</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Нижний UI -->
-        <div class="game-controls">
-            <div class="control-buttons">
-                <button class="control-btn" id="move-button">
-                    <span class="control-icon">🚶</span>
-                    <span class="control-text">Идти</span>
-                </button>
-                <button class="control-btn" id="interact-button">
-                    <span class="control-icon">🤝</span>
-                    <span class="control-text">Действие</span>
-                </button>
-                <button class="control-btn" id="inventory-button">
-                    <span class="control-icon">🎒</span>
-                    <span class="control-text">Инвентарь</span>
-                </button>
-                <button class="control-btn" id="quest-button">
-                    <span class="control-icon">📋</span>
-                    <span class="control-text">Квесты</span>
+                <button class="pixel-button" id="back-to-menu">
+                    ← Назад в меню
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Модальные окна -->
-    <div class="modal-overlay" id="modal-overlay">
-        <div class="modal" id="game-modal">
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content pixel-box">
             <div class="modal-header">
-                <h3 class="modal-title" id="modal-title">Заголовок</h3>
-                <button class="modal-close" id="modal-close">✕</button>
+                <h3 class="modal-title"></h3>
+                <button class="modal-close">×</button>
             </div>
-            <div class="modal-content" id="modal-content">
-                Содержимое модального окна
+            <div class="modal-body"></div>
+            <div class="modal-footer">
+                <button class="pixel-button modal-ok">OK</button>
             </div>
         </div>
     </div>
 
-    <!-- Уведомления -->
-    <div class="notification-system" id="notification-system"></div>
+    <!-- Всплывающие уведомления -->
+    <div id="notifications-container"></div>
 
+    <!-- Основной скрипт -->
     <script src="game.js"></script>
 </body>
 </html> 
