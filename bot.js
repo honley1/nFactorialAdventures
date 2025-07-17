@@ -1,7 +1,23 @@
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 require('dotenv').config();
+
+// Подключение к MongoDB (используем тот же URI что и сервер)
+if (process.env.MONGO_URI) {
+    mongoose.connect(process.env.MONGO_URI)
+        .then(() => console.log('🤖 Bot connected to MongoDB'))
+        .catch(err => console.error('❌ Bot MongoDB connection error:', err));
+} else {
+    console.warn('⚠️  MONGO_URI not set for bot, some features may not work');
+}
+
+// Импорт моделей
+const User = require('./models/User');
+const DoomSession = require('./models/DoomSession');
+const GameSession = require('./models/GameSession');
+const Achievement = require('./models/Achievement');
 
 // Инициализация бота
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -20,7 +36,7 @@ bot.telegram.setMyCommands([
 // Helper функция для безопасного редактирования сообщений
 const safeEditMessage = async (ctx, text, options = {}) => {
     try {
-        await safeEditMessage(ctx, text, options);
+        await ctx.editMessageText(text, options);
     } catch (error) {
         // Если не получается редактировать (медиа сообщение), отправляем новое
         await ctx.reply(text, options);
@@ -28,7 +44,18 @@ const safeEditMessage = async (ctx, text, options = {}) => {
 };
 
 // URL Mini App
-const MINI_APP_URL = process.env.FRONTEND_URL || 'https://eed58e0935c7.ngrok-free.app';
+const MINI_APP_URL = process.env.MINI_APP_URL || process.env.FRONTEND_URL || 'https://eed58e0935c7.ngrok-free.app';
+
+// Настройка кнопки "Open" в списке чатов для Web App
+bot.telegram.setChatMenuButton({
+    type: 'web_app',
+    text: '🎮 ИГРАТЬ',
+    web_app: { url: MINI_APP_URL }
+}).then(() => {
+    console.log('✅ Кнопка "ИГРАТЬ" установлена в меню чата');
+}).catch(err => {
+    console.error('❌ Ошибка установки кнопки меню:', err);
+});
 
 console.log('🤖 nFactorial Adventures Bot (Telegraf) started');
 console.log('🔗 Mini App URL:', MINI_APP_URL);
@@ -155,28 +182,101 @@ bot.command('rules', async (ctx) => {
 
 // Команда /achievements
 bot.command('achievements', async (ctx) => {
-    const achievementsMessage = `🏅 **Твои достижения**
+    try {
+        const telegramId = ctx.from.id.toString();
+        
+        // Получаем пользователя и его достижения
+        const user = await User.findOne({ telegramId });
+        
+        if (!user) {
+            const noUserMessage = `🏅 **Достижения недоступны**
 
-**Разблокированные:**
-✅ 🎉 **Первые шаги** - Зарегистрировался в игре
-✅ ☕ **Первый кофе** - Выпил первую чашку кофе
+❌ Сначала нужно войти в игру!
 
-**Заблокированные:**
-🔒 🤝 **Социальная бабочка** - Поговори с 10 разными NPC
-🔒 💻 **Код-мастер** - Напиши 100 строк кода
-🔒 🧠 **Знаток** - Набери 1000 очков знаний
-🔒 💪 **Мотиватор** - Поддержи мотивацию на максимуме 7 дней
-🔒 😴 **Здоровый сон** - Спи 8+ часов каждую ночь неделю
-🔒 🏆 **Топ студент** - Попади в топ-3 лидерборда
-🔒 📚 **Книголюб** - Изучи все материалы курса
-🔒 🎯 **Финишер** - Заверши все 10 недель bootcamp
-🔒 👑 **Легенда nFactorial** - Получи все остальные достижения
+💡 Нажмите "Играть" чтобы создать аккаунт и начать разблокировать достижения.`;
 
-*Всего достижений: 2/10*
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.webApp('🎮 Начать игру!', MINI_APP_URL)]
+            ]);
 
-Продолжай играть чтобы разблокировать больше! 🚀`;
+            return await ctx.reply(noUserMessage, {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+        }
 
-    await ctx.reply(achievementsMessage, { parse_mode: 'Markdown' });
+        // Получаем DOOM сессию для проверки простых достижений
+        const doomSession = await DoomSession.findOne({ userId: user._id });
+        
+        // Подсчитываем достижения
+        const globalAchievements = user.achievementsUnlocked || [];
+        const doomAchievements = doomSession?.achievements || [];
+        const totalUnlocked = globalAchievements.length + doomAchievements.length;
+
+        let achievementsText = `🏅 **Достижения ${user.username || user.firstName}**\n\n`;
+
+        // Показываем разблокированные DOOM достижения
+        if (doomAchievements.length > 0) {
+            achievementsText += `✅ **Разблокированные (DOOM):**\n`;
+            doomAchievements.forEach(achievement => {
+                const date = achievement.unlockedAt?.toLocaleDateString('ru-RU') || 'недавно';
+                achievementsText += `• 🏆 **${achievement.name}** (${date})\n`;
+            });
+            achievementsText += `\n`;
+        }
+
+        // Показываем глобальные достижения
+        if (globalAchievements.length > 0) {
+            achievementsText += `✅ **Глобальные достижения:**\n`;
+            globalAchievements.forEach(achievement => {
+                achievementsText += `• ⭐ **${achievement.name || achievement.id}**\n`;
+            });
+            achievementsText += `\n`;
+        }
+
+        // Показываем доступные для разблокировки достижения
+        achievementsText += `🔒 **Доступные достижения:**\n`;
+        
+        // DOOM достижения
+        const enemiesKilled = doomSession ? Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
+        const itemsCollected = doomSession ? Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
+        
+        if (enemiesKilled < 10) {
+            achievementsText += `• ⚔️ Первый охотник - Убей 10 врагов (${enemiesKilled}/10)\n`;
+        }
+        if (!doomAchievements.find(a => a.id === 'bug_destroyer')) {
+            const bugKills = doomSession?.enemiesKilled?.bug || 0;
+            achievementsText += `• 🐛 Истребитель багов - Убей 5 багов (${bugKills}/5)\n`;
+        }
+        if (!doomAchievements.find(a => a.id === 'collector')) {
+            achievementsText += `• 📦 Коллекционер - Собери 5 предметов (${itemsCollected}/5)\n`;
+        }
+        if (user.currentWeek < 1) {
+            achievementsText += `• 📅 Первая неделя - Завершить неделю 1\n`;
+        }
+        if (user.level < 5) {
+            achievementsText += `• 🚀 Продвинутый - Достичь 5 уровня (${user.level}/5)\n`;
+        }
+        if (user.level < 10) {
+            achievementsText += `• ⭐ Эксперт - Достичь 10 уровня (${user.level}/10)\n`;
+        }
+
+        achievementsText += `\n📊 **Статистика:** ${totalUnlocked} достижений разблокировано\n\n`;
+        achievementsText += `💡 Продолжай играть в DOOM чтобы разблокировать больше достижений!`;
+
+        const keyboard = Markup.inlineKeyboard([
+            [Markup.button.webApp('🎯 За достижениями!', MINI_APP_URL)]
+        ]);
+
+        await ctx.reply(achievementsText, {
+            parse_mode: 'Markdown',
+            ...keyboard
+        });
+
+    } catch (error) {
+        console.error('❌ Achievements command error:', error);
+        await ctx.reply('😓 Ошибка получения достижений. Попробуйте позже.');
+    }
 });
 
 // Команда /game
@@ -213,54 +313,188 @@ bot.command('game', async (ctx) => {
 
 // Команда /stats
 bot.command('stats', async (ctx) => {
-    // Здесь можно добавить запрос к базе данных
-    const statsMessage = `📊 **Твоя статистика**
+    try {
+        const telegramId = ctx.from.id.toString();
+        
+        // Получаем пользователя из базы
+        const user = await User.findOne({ telegramId });
+        
+        if (!user) {
+            const noUserMessage = `📊 **Статистика недоступна**
 
-🎮 Игры сыграно: 0
-⏱️ Время в игре: 0 мин
-🏆 Достижений: 0/25
-📊 Очки: 0
+❌ Сначала нужно войти в игру!
 
-🏅 Твой ранг: Новичок 🌱
+💡 Нажмите "Играть" чтобы создать аккаунт.`;
 
-💡 Начни играть, чтобы увидеть статистику!`;
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.webApp('🎮 Начать играть!', MINI_APP_URL)]
+            ]);
+
+            return await ctx.reply(noUserMessage, {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+        }
+
+        // Получаем DOOM сессию
+        const doomSession = await DoomSession.findOne({ userId: user._id });
+        const gameSession = await GameSession.findOne({ userId: user._id });
+
+        // Подсчитываем статистику
+        const totalEnemiesKilled = doomSession ? 
+            Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
+        const totalItemsCollected = doomSession ?
+            Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
+        const playTimeMinutes = doomSession ?
+            Math.floor(doomSession.stats.totalPlayTime / 60) : 0;
+        const achievementsCount = (user.achievementsUnlocked?.length || 0) + 
+                                 (doomSession?.achievements?.length || 0);
+
+        // Определяем ранг
+        const getRank = (level) => {
+            if (level >= 20) return '👑 Легенда nFactorial';
+            if (level >= 15) return '🏆 Мастер';
+            if (level >= 10) return '⭐ Эксперт';
+            if (level >= 5) return '🚀 Продвинутый';
+            return '🌱 Новичок';
+        };
+
+        const statsMessage = `📊 **Статистика ${user.username || user.firstName}**
+
+🎮 **Общий прогресс:**
+• Уровень: ${user.level}/50
+• Опыт: ${user.experience}
+• Очки: ${user.score?.total || 0}
+• Неделя: ${user.currentWeek}/10
+
+⚔️ **DOOM статистика:**
+• Врагов убито: ${totalEnemiesKilled}
+• Предметов собрано: ${totalItemsCollected}
+• Время в игре: ${playTimeMinutes} мин
+• Достижений: ${achievementsCount}
+
+🏅 **Твой ранг:** ${getRank(user.level)}
+
+📅 Создан: ${user.createdAt?.toLocaleDateString('ru-RU') || 'Неизвестно'}
+🕐 Последний вход: ${user.lastPlayed?.toLocaleDateString('ru-RU') || 'Сегодня'}`;
 
     const keyboard = Markup.inlineKeyboard([
-        [Markup.button.webApp('🎮 Играть сейчас!', MINI_APP_URL)]
+            [Markup.button.webApp('🎮 Продолжить играть!', MINI_APP_URL)]
     ]);
 
     await ctx.reply(statsMessage, {
         parse_mode: 'Markdown',
         ...keyboard
     });
+
+    } catch (error) {
+        console.error('❌ Stats command error:', error);
+        await ctx.reply('😓 Ошибка получения статистики. Попробуйте позже.');
+    }
 });
 
 // Команда /leaderboard
 bot.command('leaderboard', async (ctx) => {
-    const leaderboardMessage = `🏆 **Топ игроков nFactorial Adventures**
+    try {
+        // Получаем топ-5 игроков из базы
+        const topPlayers = await User.aggregate([
+            {
+                $lookup: {
+                    from: 'gamesessions',
+                    localField: 'telegramId',
+                    foreignField: 'telegramId',
+                    as: 'sessions'
+                }
+            },
+            {
+                $addFields: {
+                    totalScore: { $sum: '$sessions.stats.totalScore' },
+                    totalAchievements: { $size: '$achievementsUnlocked' }
+                }
+            },
+            {
+                $sort: { 
+                    level: -1, 
+                    experience: -1, 
+                    totalScore: -1,
+                    totalAchievements: -1
+                }
+            },
+            {
+                $limit: 5
+            },
+            {
+                $project: {
+                    username: 1,
+                    firstName: 1,
+                    level: 1,
+                    experience: 1,
+                    totalScore: 1,
+                    totalAchievements: 1,
+                    currentWeek: 1
+                }
+            }
+        ]);
 
-1. 👑 @student1 - 10,250 очков
-2. 🥈 @coder_pro - 8,900 очков  
-3. 🥉 @react_master - 7,650 очков
-4. 🏅 @js_ninja - 6,420 очков
-5. 🏅 @frontend_guru - 5,880 очков
+        let leaderboardText = '🏆 **Топ игроков nFactorial Adventures**\n\n';
 
-*Твое место будет здесь после первой игры!*
+        if (topPlayers.length === 0) {
+            leaderboardText += '🤷‍♂️ Пока никого нет в рейтинге!\n\n*Стань первым! Начни играть.*';
+        } else {
+            const medals = ['👑', '🥈', '🥉', '🏅', '🏅'];
+            
+            topPlayers.forEach((player, index) => {
+                const name = player.username || player.firstName || 'Анонимный игрок';
+                const medal = medals[index] || '🏅';
+                const level = player.level || 1;
+                const exp = player.experience || 0;
+                const score = player.totalScore || 0;
+                const achievements = player.totalAchievements || 0;
+                
+                leaderboardText += `${index + 1}. ${medal} **${name}**\n`;
+                leaderboardText += `    📊 Уровень ${level} • ${exp} опыта\n`;
+                leaderboardText += `    🎯 ${score} очков • 🏆 ${achievements} достижений\n\n`;
+            });
+        }
 
-💡 Зарабатывай очки:
-• Кодь на компьютерах (+50)
-• Общайся с менторами (+30)
-• Выполняй проекты (+100-1000)
-• Собирай достижения (+100)`;
+        // Проверяем позицию текущего игрока
+        const currentUser = await User.findOne({ telegramId: ctx.from.id.toString() });
+        if (currentUser) {
+            const allPlayers = await User.countDocuments();
+            const betterPlayers = await User.countDocuments({
+                $or: [
+                    { level: { $gt: currentUser.level } },
+                    { 
+                        level: currentUser.level, 
+                        experience: { $gt: currentUser.experience } 
+                    }
+                ]
+            });
+            const userPosition = betterPlayers + 1;
+            
+            leaderboardText += `📍 **Твоя позиция:** ${userPosition}/${allPlayers}\n\n`;
+        }
+
+        leaderboardText += `💡 **Как подняться в рейтинге:**\n`;
+        leaderboardText += `• ⚔️ Убивай врагов в DOOM (+10 опыта)\n`;
+        leaderboardText += `• 💬 Общайся с NPC (+5-15 опыта)\n`;
+        leaderboardText += `• 📦 Собирай предметы\n`;
+        leaderboardText += `• 🏆 Разблокируй достижения\n`;
+        leaderboardText += `• 🎯 Завершай недели DOOM`;
 
     const keyboard = Markup.inlineKeyboard([
         [Markup.button.webApp('🚀 Подняться в рейтинге!', MINI_APP_URL)]
     ]);
 
-    await ctx.reply(leaderboardMessage, {
+        await ctx.reply(leaderboardText, {
         parse_mode: 'Markdown',
         ...keyboard
     });
+
+    } catch (error) {
+        console.error('❌ Leaderboard command error:', error);
+        await ctx.reply('😓 Ошибка получения рейтинга. Попробуйте позже.');
+    }
 });
 
 // ===== CALLBACK HANDLERS =====
@@ -294,29 +528,96 @@ bot.action('rules', async (ctx) => {
 bot.action('leaderboard', async (ctx) => {
     await ctx.answerCbQuery('🏆 Открываю лидерборд...');
     
-    const leaderboardMessage = `🏆 **Топ игроков nFactorial Adventures**
+    try {
+        // Получаем топ-3 игроков из базы (для компактности)
+        const topPlayers = await User.aggregate([
+            {
+                $lookup: {
+                    from: 'gamesessions',
+                    localField: 'telegramId',
+                    foreignField: 'telegramId',
+                    as: 'sessions'
+                }
+            },
+            {
+                $addFields: {
+                    totalScore: { $sum: '$sessions.stats.totalScore' },
+                    totalAchievements: { $size: '$achievementsUnlocked' }
+                }
+            },
+            {
+                $sort: { 
+                    level: -1, 
+                    experience: -1, 
+                    totalScore: -1
+                }
+            },
+            {
+                $limit: 3
+            },
+            {
+                $project: {
+                    username: 1,
+                    firstName: 1,
+                    level: 1,
+                    experience: 1,
+                    totalScore: 1,
+                    totalAchievements: 1
+                }
+            }
+        ]);
 
-1. 👑 @student1 - 10,250 очков
-2. 🥈 @coder_pro - 8,900 очков  
-3. 🥉 @react_master - 7,650 очков
-4. 🏅 @js_ninja - 6,420 очков
-5. 🏅 @frontend_guru - 5,880 очков
+        let leaderboardText = '🏆 **Топ игроков nFactorial Adventures**\n\n';
 
-*Твое место будет здесь после первой игры!*
+        if (topPlayers.length === 0) {
+            leaderboardText += '🤷‍♂️ Пока никого нет в рейтинге!\n\n*Стань первым!*';
+        } else {
+            const medals = ['👑', '🥈', '🥉'];
+            
+            topPlayers.forEach((player, index) => {
+                const name = player.username || player.firstName || 'Анонимный игрок';
+                const medal = medals[index];
+                const level = player.level || 1;
+                const exp = player.experience || 0;
+                
+                leaderboardText += `${index + 1}. ${medal} **${name}**\n`;
+                leaderboardText += `    Уровень ${level} • ${exp} опыта\n\n`;
+            });
+        }
 
-💡 Зарабатывай очки:
-• Кодь на компьютерах (+50)
-• Общайся с менторами (+30)
-• Выполняй проекты (+100-1000)
-• Собирай достижения (+100)`;
+        // Проверяем позицию текущего игрока
+        const currentUser = await User.findOne({ telegramId: ctx.from.id.toString() });
+        if (currentUser) {
+            const betterPlayers = await User.countDocuments({
+                $or: [
+                    { level: { $gt: currentUser.level } },
+                    { 
+                        level: currentUser.level, 
+                        experience: { $gt: currentUser.experience } 
+                    }
+                ]
+            });
+            const userPosition = betterPlayers + 1;
+            leaderboardText += `📍 **Твоя позиция:** ${userPosition}\n\n`;
+        }
 
-    await safeEditMessage(ctx, leaderboardMessage, {
+        leaderboardText += `💡 **Поднимайся в рейтинге:**\n`;
+        leaderboardText += `• ⚔️ Убивай врагов в DOOM\n`;
+        leaderboardText += `• 💬 Общайся с NPC\n`;
+        leaderboardText += `• 🏆 Собирай достижения`;
+
+        await safeEditMessage(ctx, leaderboardText, {
         parse_mode: 'Markdown',
         reply_markup: Markup.inlineKeyboard([
-            [Markup.button.callback('🎮 Играть', 'game')],
+                [Markup.button.webApp('🎮 Играть', MINI_APP_URL)],
             [Markup.button.callback('🏠 Главное меню', 'main_menu')]
         ])
     });
+
+    } catch (error) {
+        console.error('❌ Leaderboard callback error:', error);
+        await ctx.answerCbQuery('😓 Ошибка загрузки рейтинга');
+    }
 });
 
 // Помощь
@@ -359,67 +660,205 @@ bot.action('help', async (ctx) => {
 bot.action('stats', async (ctx) => {
     await ctx.answerCbQuery('📊 Загружаю твою статистику...');
     
-    // Здесь можно добавить запрос к базе данных
-    const statsMessage = `📊 **Твоя статистика**
+    try {
+        const telegramId = ctx.from.id.toString();
+        
+        // Получаем пользователя из базы
+        const user = await User.findOne({ telegramId });
+        
+        if (!user) {
+            const noUserMessage = `📊 **Статистика недоступна**
 
-🎮 Игры сыграно: 0
-⏱️ Время в игре: 0 мин
-🏆 Достижений: 0/25
-📊 Очки: 0
+❌ Сначала нужно войти в игру!
 
-🏅 Твой ранг: Новичок 🌱
+💡 Нажмите "Играть" чтобы создать аккаунт.`;
 
-💡 Начни играть, чтобы увидеть статистику!`;
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.webApp('🎮 Начать играть!', MINI_APP_URL)]
+            ]);
+
+            return await safeEditMessage(ctx, noUserMessage, {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+        }
+
+        // Получаем DOOM сессию
+        const doomSession = await DoomSession.findOne({ userId: user._id });
+
+        // Подсчитываем статистику
+        const totalEnemiesKilled = doomSession ? 
+            Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
+        const playTimeMinutes = doomSession ?
+            Math.floor(doomSession.stats.totalPlayTime / 60) : 0;
+        const achievementsCount = (user.achievementsUnlocked?.length || 0) + 
+                                 (doomSession?.achievements?.length || 0);
+
+        // Определяем ранг
+        const getRank = (level) => {
+            if (level >= 20) return '👑 Легенда';
+            if (level >= 15) return '🏆 Мастер';
+            if (level >= 10) return '⭐ Эксперт';
+            if (level >= 5) return '🚀 Продвинутый';
+            return '🌱 Новичок';
+        };
+
+        const statsMessage = `📊 **Статистика ${user.username || user.firstName}**
+
+🎮 **Прогресс:**
+• Уровень: ${user.level}/50
+• Опыт: ${user.experience}
+• Неделя: ${user.currentWeek}/10
+
+⚔️ **DOOM:**
+• Врагов убито: ${totalEnemiesKilled}
+• Время в игре: ${playTimeMinutes} мин
+• Достижений: ${achievementsCount}
+
+🏅 **Ранг:** ${getRank(user.level)}
+
+📅 В игре с: ${user.createdAt?.toLocaleDateString('ru-RU') || 'недавно'}`;
 
     const keyboard = Markup.inlineKeyboard([
-        [Markup.button.webApp('🎮 Играть сейчас!', MINI_APP_URL)]
+            [Markup.button.webApp('🎮 Продолжить игру!', MINI_APP_URL)]
     ]);
 
     await safeEditMessage(ctx, statsMessage, {
         parse_mode: 'Markdown',
         ...keyboard
     });
+
+    } catch (error) {
+        console.error('❌ Stats callback error:', error);
+        await ctx.answerCbQuery('😓 Ошибка загрузки статистики');
+    }
 });
 
 // Достижения
 bot.action('achievements', async (ctx) => {
     await ctx.answerCbQuery('🏆 Загружаю достижения...');
     
-    const achievementsMessage = `🏆 **Достижения nFactorial Adventures**
+    try {
+        const telegramId = ctx.from.id.toString();
+        
+        // Получаем пользователя и его достижения
+        const user = await User.findOne({ telegramId });
+        
+        if (!user) {
+            const noUserMessage = `🏆 **Достижения nFactorial Adventures**
 
-**Доступные достижения (25):**
+❌ Данные недоступны - нужно войти в игру!
 
-🌱 **Первые шаги:**
-• Первый вход - Войти в игру
-• Первый кофе - Выпить кофе 
-• Знакомство с ментором - Поговорить с ментором
+🎮 Нажмите "Играть" чтобы создать аккаунт.`;
 
-💻 **Обучение:**
-• Первый код - Написать код на компьютере
-• Знания = сила - Достичь 100 знаний
-• Середина пути - Достичь 5 уровня
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.webApp('🎮 Начать игру!', MINI_APP_URL)]
+            ]);
 
-🚀 **Проекты:**
-• Первый проект - Завершить проект
-• Мастер проектов - Завершить 10 проектов
+            return await safeEditMessage(ctx, noUserMessage, {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+        }
 
-☕ **Преданность:**
-• Кофеман - Выпить 100 чашек кофе
-• Сова - Играть ночью
+        // Получаем DOOM сессию
+        const doomSession = await DoomSession.findOne({ userId: user._id });
+        
+        // Подсчитываем статистику для достижений
+        const enemiesKilled = doomSession ? Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
+        const itemsCollected = doomSession ? Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
+        const doomAchievements = doomSession?.achievements || [];
+        const globalAchievements = user.achievementsUnlocked || [];
+        const totalUnlocked = doomAchievements.length + globalAchievements.length;
 
-⭐ **Специальные:**
-• Перфекционист - Идеальная неделя
-• Легенда nFactorial - Максимальный уровень
+        let achievementsText = `🏆 **Достижения ${user.username || user.firstName}**\n\n`;
 
-🎮 Начни играть, чтобы разблокировать!`;
+        // Показываем прогресс
+        achievementsText += `📊 **Твой прогресс:** ${totalUnlocked} разблокировано\n\n`;
+
+        // Показываем основные категории достижений
+        achievementsText += `🌱 **Первые шаги (DOOM):**\n`;
+        if (doomAchievements.find(a => a.id === 'first_kill')) {
+            achievementsText += `✅ Первое убийство\n`;
+        } else {
+            achievementsText += `🔒 Первое убийство - Убей первого врага\n`;
+        }
+
+        if (doomAchievements.find(a => a.id === 'collector')) {
+            achievementsText += `✅ Коллекционер\n`;
+        } else {
+            achievementsText += `🔒 Коллекционер - Собери 5 предметов (${itemsCollected}/5)\n`;
+        }
+
+        achievementsText += `\n⚔️ **Боевые достижения:**\n`;
+        if (doomAchievements.find(a => a.id === 'bug_destroyer')) {
+            achievementsText += `✅ Истребитель багов\n`;
+        } else {
+            const bugKills = doomSession?.enemiesKilled?.bug || 0;
+            achievementsText += `🔒 Истребитель багов - Убей 5 багов (${bugKills}/5)\n`;
+        }
+
+        if (enemiesKilled >= 10) {
+            achievementsText += `✅ Первый охотник\n`;
+        } else {
+            achievementsText += `🔒 Первый охотник - Убей 10 врагов (${enemiesKilled}/10)\n`;
+        }
+
+        achievementsText += `\n🚀 **Прогресс игрока:**\n`;
+        if (user.level >= 5) {
+            achievementsText += `✅ Продвинутый (уровень 5+)\n`;
+        } else {
+            achievementsText += `🔒 Продвинутый - Достичь 5 уровня (${user.level}/5)\n`;
+        }
+
+        if (user.level >= 10) {
+            achievementsText += `✅ Эксперт (уровень 10+)\n`;
+        } else {
+            achievementsText += `🔒 Эксперт - Достичь 10 уровня (${user.level}/10)\n`;
+        }
+
+        achievementsText += `\n🎯 Играй в DOOM, чтобы разблокировать больше!`;
+
+        const keyboard = Markup.inlineKeyboard([
+            [Markup.button.webApp('🎯 За достижениями!', MINI_APP_URL)]
+        ]);
+
+        await safeEditMessage(ctx, achievementsText, {
+            parse_mode: 'Markdown',
+            ...keyboard
+        });
+
+    } catch (error) {
+        console.error('❌ Achievements callback error:', error);
+        await ctx.answerCbQuery('😓 Ошибка загрузки достижений');
+    }
+});
+
+// Главное меню
+bot.action('main_menu', async (ctx) => {
+    await ctx.answerCbQuery('🏠 Главное меню');
+    
+    const welcomeMessage = `🎮 **nFactorial Adventures**
+
+Добро пожаловать в игру про жизнь в буткемпе nFactorial!
+
+🎯 Выбери действие:`;
 
     const keyboard = Markup.inlineKeyboard([
-        [Markup.button.webApp('🎯 Начать охоту за достижениями!', MINI_APP_URL)]
+        [Markup.button.webApp('🎮 ИГРАТЬ', MINI_APP_URL)],
+        [
+            Markup.button.callback('📊 Моя статистика', 'stats'),
+            Markup.button.callback('🏆 Достижения', 'achievements')
+        ],
+        [
+            Markup.button.callback('🏆 Лидерборд', 'leaderboard'),
+            Markup.button.callback('❓ Помощь', 'help')
+        ]
     ]);
 
-    await safeEditMessage(ctx, achievementsMessage, {
+    await safeEditMessage(ctx, welcomeMessage, {
         parse_mode: 'Markdown',
-        ...keyboard
+        reply_markup: keyboard.reply_markup
     });
 });
 
