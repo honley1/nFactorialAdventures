@@ -44,7 +44,7 @@ const safeEditMessage = async (ctx, text, options = {}) => {
 };
 
 // URL Mini App
-const MINI_APP_URL = process.env.MINI_APP_URL || process.env.FRONTEND_URL || 'https://eed58e0935c7.ngrok-free.app';
+const MINI_APP_URL = process.env.MINI_APP_URL;
 
 // Настройка кнопки "Open" в списке чатов для Web App
 bot.telegram.setChatMenuButton({

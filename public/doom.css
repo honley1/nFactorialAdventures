@@ -458,26 +458,67 @@ body {
 
 /* Уведомления */
 .notifications {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: 200px;
+    overflow: hidden;
     pointer-events: none;
+    z-index: 1000;
 }
 
 .notification {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
     border: 1px solid #ff0000;
+    border-radius: 4px;
     color: #ff0000;
-    padding: 15px 25px;
-    margin: 10px 0;
-    text-align: center;
-    animation: notification-appear 3s ease-in-out;
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-size: 12px;
+    text-align: left;
+    opacity: 0.9;
+    animation: notification-slide-in 0.3s ease-out, notification-fade-out 0.5s ease-in 2.5s;
 }
 
-@keyframes notification-appear {
-    0%, 100% { opacity: 0; transform: translateY(-20px); }
-    10%, 90% { opacity: 1; transform: translateY(0); }
+.notification.success {
+    border-color: #00ff00;
+    color: #00ff00;
+}
+
+.notification.warning {
+    border-color: #ffaa00;
+    color: #ffaa00;
+}
+
+.notification.error {
+    border-color: #ff4444;
+    color: #ff4444;
+}
+
+.notification.info {
+    border-color: #4444ff;
+    color: #4444ff;
+}
+
+@keyframes notification-slide-in {
+    0% { 
+        opacity: 0; 
+        transform: translateX(100%);
+    }
+    100% { 
+        opacity: 0.9; 
+        transform: translateX(0);
+    }
+}
+
+@keyframes notification-fade-out {
+    0% { 
+        opacity: 0.9;
+    }
+    100% { 
+        opacity: 0;
+    }
 }
 
 /* Меню паузы и настроек */

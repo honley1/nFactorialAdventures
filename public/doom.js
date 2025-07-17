@@ -78,8 +78,11 @@ class NFactorialDoom {
 
         // Настройки raycasting
         this.fov = Math.PI / 3;      // 60° поле зрения
-        this.rayCount = 320;         // Количество лучей
-        this.maxDistance = 16;       // Максимальная дистанция
+        this.rayCount = 400;         // Количество лучей
+        this.maxDistance = 10;       // Максимальная дистанция
+        
+        // Интервалы для автоспавна
+        this.spawnInterval = null;
         
         // Canvas и контекст
         this.canvas = null;
@@ -268,7 +271,7 @@ class NFactorialDoom {
                     bullet.alive = false;
                     
                     console.log(`🎯 Пуля ${bullet.id} попала в ${enemy.type}! Урон: ${damage}`);
-                    this.showNotification(`Попадание! -${damage} HP`, 'success');
+                    // Убрано уведомление о попадании - слишком часто
                     
                     if (enemy.health <= 0) {
                         this.showNotification(`${enemy.type === 'bug' ? 'Баг' : 'Дедлайн'} уничтожен!`, 'success');
@@ -590,6 +593,9 @@ class NFactorialDoom {
         // DOOM интеграция: Запуск автосинхронизации
         this.startAutoSync();
         
+        // Автоспавн ресурсов
+        this.startAutoSpawn();
+        
         // Показать уведомление
         this.showNotification('Добро пожаловать в nFactorial DOOM!', 'info');
     }
@@ -734,12 +740,13 @@ class NFactorialDoom {
             const dy = this.player.y - enemy.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Враги начинают преследовать только с определенного расстояния
-            const activationDistance = enemy.type === 'deadline' ? 4 : 3;
-            const attackDistance = 0.8; // Минимальное расстояние для атаки
+            // Враги видят игрока на максимальном расстоянии (вся карта)
+            const attackDistance = 0.5; // Минимальное расстояние для атаки
             
-            if (distance > attackDistance && distance < activationDistance) {
-                const moveSpeed = enemy.type === 'deadline' ? 0.015 : 0.01;
+            if (distance > attackDistance) {
+                // Враги всегда преследуют игрока если он не слишком близко
+                // Увеличена скорость в 2 раза - очень страшно! 😈
+                const moveSpeed = enemy.type === 'deadline' ? 0.03 : 0.02;
                 const moveX = (dx / distance) * moveSpeed;
                 const moveY = (dy / distance) * moveSpeed;
                 
@@ -778,10 +785,33 @@ class NFactorialDoom {
                     // Звук получения урона
                     this.playSound('hurt');
                     
-                    this.player.health -= damage;
+                    // Правильная система защиты: сначала броня, потом здоровье
+                    let remainingDamage = damage;
+                    
+                    if (this.player.armor > 0) {
+                        // Броня поглощает урон
+                        const armorDamage = Math.min(this.player.armor, remainingDamage);
+                        this.player.armor -= armorDamage;
+                        remainingDamage -= armorDamage;
+                        
+                        console.log(`🛡️ Броня поглотила ${armorDamage} урона, осталось брони: ${this.player.armor}`);
+                        
+                        if (armorDamage > 0) {
+                            this.showNotification(`🛡️ Броня: -${armorDamage}`, 'warning');
+                        }
+                    }
+                    
+                    // Оставшийся урон по здоровью
+                    if (remainingDamage > 0) {
+                        this.player.health -= remainingDamage;
+                        console.log(`❤️ HP получило ${remainingDamage} урона, осталось: ${this.player.health}`);
+                        // Убрано уведомление о уроне здоровья - показываем только урон по броне
+                    }
+                    
                     enemy.lastAttack = currentTime;
-                    console.log(`❤️ HP стало: ${this.player.health}`);
-                    this.showNotification(`Получен урон: ${damage}`, 'damage');
+                    
+                    // Обновляем HUD после получения урона
+                    this.updateHUD();
                     
                     if (this.player.health <= 0) {
                         console.log('💀 Игрок погиб!');
@@ -802,13 +832,16 @@ class NFactorialDoom {
     checkInteractions() {
         // Сбор предметов
         this.items = this.items.filter(item => {
-            const dx = this.player.x - item.x;
-            const dy = this.player.y - item.y;
+            const dx = item.x - this.player.x;
+            const dy = item.y - this.player.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < 0.5) {
-                this.collectItem(item);
-                return false; // Удалить предмет
+                // Проверяем линию видимости - нельзя собирать предметы через стены
+                if (this.hasLineOfSight(this.player.x, this.player.y, item.x, item.y)) {
+                    this.collectItem(item);
+                    return false; // Удалить предмет
+                }
             }
             return true;
         });
@@ -828,6 +861,18 @@ class NFactorialDoom {
             case 'motivation':
                 this.player.armor = Math.min(100, this.player.armor + item.value);
                 this.showNotification(`+${item.value} брони 💪`, 'success');
+                break;
+            case 'health':
+                this.player.health = Math.min(100, this.player.health + item.value);
+                this.showNotification(`+${item.value} здоровья 💊`, 'success');
+                break;
+            case 'ammo':
+                this.player.ammo = Math.min(100, this.player.ammo + item.value);
+                this.showNotification(`+${item.value} патронов 🔫`, 'success');
+                break;
+            case 'armor':
+                this.player.armor = Math.min(100, this.player.armor + item.value);
+                this.showNotification(`+${item.value} брони 🛡️`, 'success');
                 break;
         }
         
@@ -879,8 +924,11 @@ class NFactorialDoom {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < 1.5 && distance < minDistance) {
-                minDistance = distance;
-                nearestNPC = npc;
+                // Проверяем линию видимости - нельзя разговаривать через стены
+                if (this.hasLineOfSight(this.player.x, this.player.y, npc.x, npc.y)) {
+                    minDistance = distance;
+                    nearestNPC = npc;
+                }
             }
         });
         
@@ -1034,6 +1082,11 @@ class NFactorialDoom {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance > this.maxDistance) return;
+        
+        // Проверка линии видимости - не рендерим объекты за стенами
+        if (!this.hasLineOfSight(this.player.x, this.player.y, sprite.x, sprite.y)) {
+            return;
+        }
         
         // Угол к спрайту
         const angle = Math.atan2(dy, dx);
@@ -1226,6 +1279,14 @@ class NFactorialDoom {
     }
 
     restartGame() {
+        // Очищаем интервалы
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
+        if (this.spawnInterval) {
+            clearInterval(this.spawnInterval);
+        }
+        
         // Сброс игрока
         this.player = {
             x: 8.5, y: 8.5, angle: 0,
@@ -1252,10 +1313,21 @@ class NFactorialDoom {
         // Обновляем HUD
         this.updateHUD();
         
+        // Перезапуск автоспавна
+        this.startAutoSpawn();
+        
         this.resumeGame();
     }
 
     gameOver() {
+        // Очищаем интервалы
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
+        if (this.spawnInterval) {
+            clearInterval(this.spawnInterval);
+        }
+        
         alert('Игра окончена! Тебя одолели баги и дедлайны...');
         this.goToMenu();
     }
@@ -1386,6 +1458,121 @@ class NFactorialDoom {
         console.log('🔄 Автосинхронизация запущена (каждые 30 сек)');
     }
 
+    // Автоспавн ресурсов и врагов
+    startAutoSpawn() {
+        // Очистить предыдущий интервал если есть
+        if (this.spawnInterval) {
+            clearInterval(this.spawnInterval);
+        }
+        
+        // Спавн каждые 10 секунд
+        this.spawnInterval = setInterval(() => {
+            if (this.gameState === 'playing') {
+                // Случайно выбираем что заспавнить: ресурс или врага
+                if (Math.random() < 0.7) {
+                    this.spawnRandomItem();  // 70% шанс на ресурс
+                } else {
+                    this.spawnRandomEnemy(); // 30% шанс на врага
+                }
+            }
+        }, 10000); // 10 секунд
+        
+        console.log('📦 Автоспавн ресурсов и врагов запущен (каждые 10 сек)');
+    }
+
+    // Спавн случайного ресурса
+    spawnRandomItem() {
+        // Не спавним если уже много предметов на карте
+        if (this.items.length >= 10) {
+            console.log('📦 Слишком много предметов на карте, спавн отменен');
+            return;
+        }
+
+        const itemTypes = [
+            { type: 'coffee', sprite: '☕', value: 25 },
+            { type: 'knowledge', sprite: '📚', value: 10 },
+            { type: 'motivation', sprite: '💪', value: 20 },
+            { type: 'health', sprite: '💊', value: 30 },
+            { type: 'ammo', sprite: '🔫', value: 15 },
+            { type: 'armor', sprite: '🛡️', value: 25 }
+        ];
+        
+        // Выбираем случайный тип
+        const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+        
+        // Находим свободное место на карте
+        let spawnX, spawnY;
+        let attempts = 0;
+        
+        do {
+            spawnX = Math.floor(Math.random() * 14) + 1; // 1-14 (карта 16x16, исключая границы)
+            spawnY = Math.floor(Math.random() * 14) + 1; // 1-14
+            attempts++;
+        } while (this.isWall(spawnX, spawnY) && attempts < 50);
+        
+        if (attempts < 50) {
+            const newItem = {
+                id: `spawn_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                type: randomType.type,
+                x: spawnX + 0.5,
+                y: spawnY + 0.5,
+                sprite: randomType.sprite,
+                value: randomType.value
+            };
+            
+            this.items.push(newItem);
+            // Убрано уведомление о спавне ресурса - слишком часто (каждые 10 сек)
+            console.log(`📦 Заспавнен ${randomType.type} в позиции (${spawnX}, ${spawnY})`);
+        } else {
+            console.log('📦 Не удалось найти свободное место для спавна');
+        }
+    }
+
+    // Спавн случайного врага
+    spawnRandomEnemy() {
+        // Не спавним если уже много врагов на карте
+        if (this.enemies.length >= 6) {
+            console.log('👹 Слишком много врагов на карте, спавн отменен');
+            return;
+        }
+
+        const enemyTypes = [
+            { type: 'bug', sprite: '🐛', health: 30 },
+            { type: 'deadline', sprite: '⏰', health: 50 }
+        ];
+        
+        // Выбираем случайный тип врага
+        const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        
+        // Находим свободное место на карте
+        let spawnX, spawnY;
+        let attempts = 0;
+        
+        do {
+            spawnX = Math.floor(Math.random() * 14) + 1; // 1-14 (карта 16x16, исключая границы)
+            spawnY = Math.floor(Math.random() * 14) + 1; // 1-14
+            attempts++;
+        } while (this.isWall(spawnX, spawnY) && attempts < 50);
+        
+        if (attempts < 50) {
+            const newEnemy = {
+                id: `spawn_enemy_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                type: randomType.type,
+                x: spawnX + 0.5,
+                y: spawnY + 0.5,
+                health: randomType.health,
+                sprite: randomType.sprite,
+                lastAttack: 0
+            };
+            
+            this.enemies.push(newEnemy);
+            // Убрано уведомление о спавне врага - слишком часто (каждые 10 сек)
+            console.log(`👹 Заспавнен ${randomType.type} в позиции (${spawnX}, ${spawnY})`);
+        } else {
+            console.log('👹 Не удалось найти свободное место для спавна врага');
+        }
+    }
+
     async recordEnemyKill(enemy) {
         if (!this.doomSession || !this.user) return;
         
@@ -1406,10 +1593,10 @@ class NFactorialDoom {
             if (result.success) {
                 // Показываем полученный опыт и очки
                 if (result.expGain) {
-                    this.showNotification(`+${result.expGain} EXP`, 'success');
+                    // Убрано уведомление о EXP - слишком частое
                 }
                 if (result.scoreGain) {
-                    this.showNotification(`+${result.scoreGain} очков`, 'success');
+                    // Убрано уведомление об очках - слишком частое
                 }
                 
                 // Проверяем повышение уровня
@@ -1491,7 +1678,7 @@ class NFactorialDoom {
                 
                 // Показываем полученный опыт
                 if (result.expGain) {
-                    this.showNotification(`+${result.expGain} EXP`, 'success');
+                    // Убрано уведомление о EXP - слишком частое
                 }
                 
                 // Проверяем повышение уровня
@@ -1522,6 +1709,33 @@ class NFactorialDoom {
             console.warn('⚠️ Ошибка записи диалога:', error);
         }
     }
+
+    // Проверка линии видимости между двумя точками
+    hasLineOfSight(fromX, fromY, toX, toY) {
+        const dx = toX - fromX;
+        const dy = toY - fromY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Количество шагов для проверки
+        const steps = Math.ceil(distance * 10); // 10 проверок на клетку
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+        
+        // Проверяем каждый шаг между точками
+        for (let i = 1; i < steps; i++) {
+            const checkX = fromX + stepX * i;
+            const checkY = fromY + stepY * i;
+            
+            // Если встретили стену - линия видимости заблокирована
+            if (this.isWall(Math.floor(checkX), Math.floor(checkY))) {
+                return false;
+            }
+        }
+        
+        return true; // Путь свободен
+    }
+
+    // Проверка, является ли клетка стеной
 }
 
 // Запуск игры
