@@ -457,7 +457,8 @@ function getEnemyExperience(enemyType) {
 
 function checkLevelUp(user) {
   const requiredExp = user.level * 100; // Простая формула: уровень * 100
-  return user.experience >= requiredExp;
+  // Проверяем, что уровень не превышает максимальный (50)
+  return user.experience >= requiredExp && user.level < 50;
 }
 
 function getNPCRewards(npcId) {

@@ -173,7 +173,7 @@ userSchema.methods.addExperience = function(amount) {
   
   // Проверка повышения уровня
   const requiredExp = this.level * 100; // 100 опыта на уровень (синхронизировано с DOOM)
-  if (this.experience >= requiredExp && this.level < 10) {
+  if (this.experience >= requiredExp && this.level < 50) {
     this.level += 1;
     return { levelUp: true, newLevel: this.level };
   }
@@ -247,6 +247,11 @@ userSchema.pre('save', function(next) {
   if (this.score.lastWeeklyReset < weekAgo) {
     this.score.weekly = 0;
     this.score.lastWeeklyReset = new Date();
+  }
+  
+  // Дополнительная проверка уровня
+  if (this.level > 50) {
+    this.level = 50;
   }
   
   next();

@@ -37,10 +37,13 @@ class NFactorialDoom {
         };
 
         // НПС система
-        this.npcs = [
+        this.npcs = []; // NPC не появляются до убийства всех врагов
+        
+        // NPC шаблоны (будут добавлены после убийства всех врагов)
+        this.npcTemplates = [
             {
-                id: 'mentor_alex',
-                name: 'Ментор Алекс',
+                id: 'arman',
+                name: 'Арман Сулейменов',
                 x: 2, y: 2,
                 sprite: '👨‍💻',
                 dialogue: [
@@ -51,8 +54,8 @@ class NFactorialDoom {
                 currentDialogue: 0
             },
             {
-                id: 'student_helper',
-                name: 'Студент-помощник',
+                id: 'baha',
+                name: 'Бахауддин',
                 x: 14, y: 2,
                 sprite: '🧑‍🎓',
                 dialogue: [
@@ -62,6 +65,10 @@ class NFactorialDoom {
                 currentDialogue: 0
             }
         ];
+        
+        // Счётчики для отслеживания врагов
+        this.totalEnemiesSpawned = 0;
+        this.maxEnemiesToSpawn = 20; // Лимит врагов
 
         // Система типов врагов с разными характеристиками
         this.enemyTypes = [
@@ -1006,7 +1013,29 @@ class NFactorialDoom {
         });
         
         if (nearestNPC) {
+            // Воспроизводим голос NPC
+            this.playNPCVoice(nearestNPC);
+            // Также запускаем диалог (как fallback)
             this.startDialogue(nearestNPC);
+        }
+    }
+
+    // Воспроизведение голоса NPC
+    playNPCVoice(npc) {
+        let voiceFile = '';
+        if (npc.id === 'arman') {
+            voiceFile = 'arman.mp3';
+        } else if (npc.id === 'baha') {
+            voiceFile = 'baha.mp3';
+        }
+        
+        if (voiceFile) {
+            const audio = new Audio(`sounds/${voiceFile}`);
+            audio.volume = this.audioManager.volume;
+            audio.play().catch(error => {
+                console.warn(`⚠️ Ошибка воспроизведения голоса ${npc.name}:`, error);
+            });
+            console.log(`🎵 Воспроизводится голос ${npc.name}: ${voiceFile}`);
         }
     }
 
@@ -1615,9 +1644,13 @@ class NFactorialDoom {
         // Спавн каждые 10 секунд
         this.spawnInterval = setInterval(() => {
             if (this.gameState === 'playing') {
-                // Спавним 5 врагов
-                for (let i = 0; i < 5; i++) {
-                    this.spawnRandomEnemy();
+                // Спавним врагов только если не достигли лимита
+                let canSpawn = this.totalEnemiesSpawned < this.maxEnemiesToSpawn;
+                let enemiesToSpawn = Math.min(5, this.maxEnemiesToSpawn - this.totalEnemiesSpawned);
+                if (canSpawn && enemiesToSpawn > 0) {
+                    for (let i = 0; i < enemiesToSpawn; i++) {
+                        this.spawnRandomEnemy();
+                    }
                 }
                 
                 // Спавним 5 ресурсов
@@ -1625,11 +1658,19 @@ class NFactorialDoom {
                     this.spawnRandomItem();
                 }
                 
-                console.log('📦 Заспавнено 5 врагов и 5 ресурсов');
+                // Если лимит врагов достигнут и на карте нет живых врагов — появление NPC
+                if (this.totalEnemiesSpawned >= this.maxEnemiesToSpawn && 
+                    this.enemies.filter(e => e.health > 0).length === 0 && 
+                    this.npcs.length === 0) {
+                    this.npcs = this.npcTemplates.map(npc => ({ ...npc }));
+                    this.showNotification('Все враги побеждены! Появились NPC для разговора!', 'success');
+                }
+                
+                console.log('📦 Заспавнено врагов и ресурсов');
             }
         }, 10000); // 10 секунд
         
-        console.log('📦 Автоспавн запущен: 5 врагов + 5 ресурсов каждые 10 сек');
+        console.log('📦 Автоспавн запущен: максимум 20 врагов за игру');
     }
 
     // Спавн случайного ресурса
@@ -1682,9 +1723,9 @@ class NFactorialDoom {
 
     // Спавн случайного врага
     spawnRandomEnemy() {
-        // Не спавним если уже много врагов на карте (увеличено для большего количества врагов!)
-        if (this.enemies.length >= 50) {
-            console.log('👹 Слишком много врагов на карте, спавн отменен');
+        // Не спавним если уже много врагов на карте или достигнут лимит
+        if (this.enemies.length >= 50 || this.totalEnemiesSpawned >= this.maxEnemiesToSpawn) {
+            console.log('👹 Слишком много врагов на карте или достигнут лимит, спавн отменен');
             return;
         }
 
@@ -1713,8 +1754,8 @@ class NFactorialDoom {
             };
             
             this.enemies.push(newEnemy);
-            // Убрано уведомление о спавне врага - слишком часто (каждые 10 сек)
-            console.log(`👹 Заспавнен ${randomType.type} в позиции (${spawnX}, ${spawnY})`);
+            this.totalEnemiesSpawned++;
+            console.log(`👹 Заспавнен ${randomType.type} в позиции (${spawnX}, ${spawnY}) [${this.totalEnemiesSpawned}/20]`);
         } else {
             console.log('👹 Не удалось найти свободное место для спавна врага');
         }
@@ -1767,9 +1808,24 @@ class NFactorialDoom {
                 this.updatePlayerInfo(); // Обновляем отображение опыта
                 
                 console.log(`⚔️ Враг ${enemy.type} убит, опыт: +${result.expGain}`);
+                
+                // Проверяем, нужно ли показать NPC после убийства врага
+                this.checkNPCSpawnCondition();
             }
         } catch (error) {
             console.warn('⚠️ Ошибка записи убийства врага:', error);
+        }
+    }
+    
+    // Проверка условия появления NPC
+    checkNPCSpawnCondition() {
+        if (this.totalEnemiesSpawned >= this.maxEnemiesToSpawn && 
+            this.enemies.filter(e => e.health > 0).length === 0 && 
+            this.npcs.length === 0) {
+            
+            this.npcs = this.npcTemplates.map(npc => ({ ...npc }));
+            this.showNotification('Все враги побеждены! Появились NPC для разговора!', 'success');
+            console.log('👥 NPC появились после уничтожения всех врагов');
         }
     }
 
