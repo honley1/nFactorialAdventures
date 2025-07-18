@@ -41,10 +41,7 @@ router.get('/', async (req, res) => {
         // Добавляем позиции и форматируем данные
         const leaderboard = leaderboardData.map((player, index) => {
             const doomSession = doomSessionsMap[player._id.toString()];
-            const globalAchievements = player.achievementsUnlocked?.length || 0;
             const doomAchievements = doomSession?.achievements?.length || 0;
-            const totalAchievements = globalAchievements + doomAchievements;
-            
             return {
                 position: index + 1,
                 id: player._id,
@@ -55,7 +52,7 @@ router.get('/', async (req, res) => {
                 experience: player.experience || 0,
                 totalScore: player.score?.total || 0,
                 weeklyScore: player.score?.weekly || 0,
-                totalAchievements: totalAchievements,
+                totalAchievements: doomAchievements,
                 currentWeek: player.currentWeek || 1
             };
         });

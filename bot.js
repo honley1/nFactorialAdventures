@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const fetch = require('node-fetch'); // Добавить в начало файла, если ещё не подключён
 
 // Подключение к MongoDB (используем тот же URI что и сервер)
 if (process.env.MONGO_URI) {
@@ -211,65 +212,64 @@ bot.command('achievements', async (ctx) => {
         // Подсчитываем достижения
         const globalAchievements = user.achievementsUnlocked || [];
         const doomAchievements = doomSession?.achievements || [];
-        const totalUnlocked = globalAchievements.length + doomAchievements.length;
+        const totalUnlocked = doomAchievements.length;
 
-        let achievementsText = `🏅 **Достижения ${user.username || user.firstName}**\n\n`;
+        let achievementsTextHtml = `🏅 <b>Достижения ${user.username || user.firstName}</b>\n\n`;
 
         // Показываем разблокированные DOOM достижения
         if (doomAchievements.length > 0) {
-            achievementsText += `✅ **Разблокированные (DOOM):**\n`;
+            achievementsTextHtml += `✅ <b>Разблокированные (DOOM):</b>\n`;
             doomAchievements.forEach(achievement => {
                 const date = achievement.unlockedAt?.toLocaleDateString('ru-RU') || 'недавно';
-                achievementsText += `• 🏆 **${achievement.name}** (${date})\n`;
+                achievementsTextHtml += `• 🏆 <b>${achievement.name}</b> (${date})\n`;
             });
-            achievementsText += `\n`;
+            achievementsTextHtml += `\n`;
         }
 
         // Показываем глобальные достижения
         if (globalAchievements.length > 0) {
-            achievementsText += `✅ **Глобальные достижения:**\n`;
+            achievementsTextHtml += `✅ <b>Глобальные достижения:</b>\n`;
             globalAchievements.forEach(achievement => {
-                achievementsText += `• ⭐ **${achievement.name || achievement.id}**\n`;
+                achievementsTextHtml += `• ⭐ <b>${achievement.name || achievement.id}</b>\n`;
             });
-            achievementsText += `\n`;
+            achievementsTextHtml += `\n`;
         }
 
         // Показываем доступные для разблокировки достижения
-        achievementsText += `🔒 **Доступные достижения:**\n`;
+        achievementsTextHtml += `🔒 <b>Доступные достижения:</b>\n`;
         
         // DOOM достижения
         const enemiesKilled = doomSession ? Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
         const itemsCollected = doomSession ? Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
         
         if (enemiesKilled < 10) {
-            achievementsText += `• ⚔️ Первый охотник - Убей 10 врагов (${enemiesKilled}/10)\n`;
+            achievementsTextHtml += `• ⚔️ Первый охотник - Убей 10 врагов (${enemiesKilled}/10)\n`;
         }
         if (!doomAchievements.find(a => a.id === 'bug_destroyer')) {
             const bugKills = doomSession?.enemiesKilled?.bug || 0;
-            achievementsText += `• 🐛 Истребитель багов - Убей 5 багов (${bugKills}/5)\n`;
+            achievementsTextHtml += `• 🐛 Истребитель багов - Убей 5 багов (${bugKills}/5)\n`;
         }
         if (!doomAchievements.find(a => a.id === 'collector')) {
-            achievementsText += `• 📦 Коллекционер - Собери 5 предметов (${itemsCollected}/5)\n`;
+            achievementsTextHtml += `• 📦 Коллекционер - Собери 5 предметов (${itemsCollected}/5)\n`;
         }
         if (user.currentWeek < 1) {
-            achievementsText += `• 📅 Первая неделя - Завершить неделю 1\n`;
+            achievementsTextHtml += `• 📅 Первая неделя - Завершить неделю 1\n`;
         }
         if (user.level < 5) {
-            achievementsText += `• 🚀 Продвинутый - Достичь 5 уровня (${user.level}/5)\n`;
+            achievementsTextHtml += `• 🚀 Продвинутый - Достичь 5 уровня (${user.level}/5)\n`;
         }
         if (user.level < 10) {
-            achievementsText += `• ⭐ Эксперт - Достичь 10 уровня (${user.level}/10)\n`;
+            achievementsTextHtml += `• ⭐ Эксперт - Достичь 10 уровня (${user.level}/10)\n`;
         }
-
-        achievementsText += `\n📊 **Статистика:** ${totalUnlocked} достижений разблокировано\n\n`;
-        achievementsText += `💡 Продолжай играть в DOOM чтобы разблокировать больше достижений!`;
+        achievementsTextHtml += `\n📊 <b>Статистика:</b> ${totalUnlocked} достижений разблокировано\n\n`;
+        achievementsTextHtml += `💡 Продолжай играть в DOOM чтобы разблокировать больше достижений!`;
 
         const keyboard = Markup.inlineKeyboard([
             [Markup.button.webApp('🎯 За достижениями!', MINI_APP_URL)]
         ]);
 
-        await ctx.reply(achievementsText, {
-            parse_mode: 'Markdown',
+        await ctx.reply(achievementsTextHtml, {
+            parse_mode: 'HTML',
             ...keyboard
         });
 
@@ -347,8 +347,7 @@ bot.command('stats', async (ctx) => {
             Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
         const playTimeMinutes = doomSession ?
             Math.floor(doomSession.stats.totalPlayTime / 60) : 0;
-        const achievementsCount = (user.achievementsUnlocked?.length || 0) + 
-                                 (doomSession?.achievements?.length || 0);
+        const achievementsCount = (doomSession?.achievements?.length || 0);
 
         // Определяем ранг
         const getRank = (level) => {
@@ -359,31 +358,15 @@ bot.command('stats', async (ctx) => {
             return '🌱 Новичок';
         };
 
-        const statsMessage = `📊 **Статистика ${user.username || user.firstName}**
-
-🎮 **Общий прогресс:**
-• Уровень: ${user.level}/50
-• Опыт: ${user.experience}
-• Очки: ${user.score?.total || 0}
-• Неделя: ${user.currentWeek}/10
-
-⚔️ **DOOM статистика:**
-• Врагов убито: ${totalEnemiesKilled}
-• Предметов собрано: ${totalItemsCollected}
-• Время в игре: ${playTimeMinutes} мин
-• Достижений: ${achievementsCount}
-
-🏅 **Твой ранг:** ${getRank(user.level)}
-
-📅 Создан: ${user.createdAt?.toLocaleDateString('ru-RU') || 'Неизвестно'}
-🕐 Последний вход: ${user.lastPlayed?.toLocaleDateString('ru-RU') || 'Сегодня'}`;
+        const statsMessage = `📊 <b>Статистика ${user.username || user.firstName}</b>\n\n
+🎮 <b>Общий прогресс:</b>\n• Уровень: ${user.level}/50\n• Опыт: ${user.experience}\n• Очки: ${user.score?.total || 0}\n• Неделя: ${user.currentWeek}/10\n\n⚔️ <b>DOOM статистика:</b>\n• Врагов убито: ${totalEnemiesKilled}\n• Предметов собрано: ${totalItemsCollected}\n• Время в игре: ${playTimeMinutes} мин\n• Достижений: ${achievementsCount}\n\n🏅 <b>Твой ранг:</b> ${getRank(user.level)}\n\n📅 Создан: ${user.createdAt?.toLocaleDateString('ru-RU') || 'Неизвестно'}\n🕐 Последний вход: ${user.lastPlayed?.toLocaleDateString('ru-RU') || 'Сегодня'}`;
 
     const keyboard = Markup.inlineKeyboard([
             [Markup.button.webApp('🎮 Продолжить играть!', MINI_APP_URL)]
     ]);
 
     await ctx.reply(statsMessage, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         ...keyboard
     });
 
@@ -396,53 +379,19 @@ bot.command('stats', async (ctx) => {
 // Команда /leaderboard
 bot.command('leaderboard', async (ctx) => {
     try {
-        // Получаем топ-5 игроков из базы
-        const topPlayers = await User.aggregate([
-            {
-                $lookup: {
-                    from: 'gamesessions',
-                    localField: 'telegramId',
-                    foreignField: 'telegramId',
-                    as: 'sessions'
-                }
-            },
-            {
-                $addFields: {
-                    totalScore: { $sum: '$sessions.stats.totalScore' },
-                    totalAchievements: { $size: '$achievementsUnlocked' }
-                }
-            },
-            {
-                $sort: { 
-                    level: -1, 
-                    experience: -1, 
-                    totalScore: -1,
-                    totalAchievements: -1
-                }
-            },
-            {
-                $limit: 5
-            },
-            {
-                $project: {
-                    username: 1,
-                    firstName: 1,
-                    level: 1,
-                    experience: 1,
-                    totalScore: 1,
-                    totalAchievements: 1,
-                    currentWeek: 1
-                }
-            }
-        ]);
+        // Получаем leaderboard через API
+        const apiUrl = process.env.API_URL || 'http://localhost:3000/api/leaderboard';
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (!data.success) throw new Error('API leaderboard error');
+        const topPlayers = data.leaderboard;
 
-        let leaderboardText = '🏆 **Топ игроков nFactorial Adventures**\n\n';
+        let leaderboardText = '🏆 <b>Топ игроков nFactorial Adventures</b>\n\n';
 
         if (topPlayers.length === 0) {
-            leaderboardText += '🤷‍♂️ Пока никого нет в рейтинге!\n\n*Стань первым! Начни играть.*';
+            leaderboardText += '🤷‍♂️ Пока никого нет в рейтинге!\n\n<i>Стань первым! Начни играть.</i>';
         } else {
             const medals = ['👑', '🥈', '🥉', '🏅', '🏅'];
-            
             topPlayers.forEach((player, index) => {
                 const name = player.username || player.firstName || 'Анонимный игрок';
                 const medal = medals[index] || '🏅';
@@ -450,47 +399,33 @@ bot.command('leaderboard', async (ctx) => {
                 const exp = player.experience || 0;
                 const score = player.totalScore || 0;
                 const achievements = player.totalAchievements || 0;
-                
-                leaderboardText += `${index + 1}. ${medal} **${name}**\n`;
+                leaderboardText += `${index + 1}. ${medal} <b>${name}</b>\n`;
                 leaderboardText += `    📊 Уровень ${level} • ${exp} опыта\n`;
                 leaderboardText += `    🎯 ${score} очков • 🏆 ${achievements} достижений\n\n`;
             });
         }
 
-        // Проверяем позицию текущего игрока
-        const currentUser = await User.findOne({ telegramId: ctx.from.id.toString() });
+        // Определяем позицию текущего игрока
+        const currentUser = topPlayers.find(p => p.telegramId == ctx.from.id.toString());
         if (currentUser) {
-            const allPlayers = await User.countDocuments();
-            const betterPlayers = await User.countDocuments({
-                $or: [
-                    { level: { $gt: currentUser.level } },
-                    { 
-                        level: currentUser.level, 
-                        experience: { $gt: currentUser.experience } 
-                    }
-                ]
-            });
-            const userPosition = betterPlayers + 1;
-            
-            leaderboardText += `📍 **Твоя позиция:** ${userPosition}/${allPlayers}\n\n`;
+            leaderboardText += `📍 <b>Твоя позиция:</b> ${currentUser.position}/${topPlayers.length}\n\n`;
         }
 
-        leaderboardText += `💡 **Как подняться в рейтинге:**\n`;
+        leaderboardText += `💡 <b>Как подняться в рейтинге:</b>\n`;
         leaderboardText += `• ⚔️ Убивай врагов в DOOM (+10 опыта)\n`;
         leaderboardText += `• 💬 Общайся с NPC (+5-15 опыта)\n`;
         leaderboardText += `• 📦 Собирай предметы\n`;
         leaderboardText += `• 🏆 Разблокируй достижения\n`;
         leaderboardText += `• 🎯 Завершай недели DOOM`;
 
-    const keyboard = Markup.inlineKeyboard([
-        [Markup.button.webApp('🚀 Подняться в рейтинге!', MINI_APP_URL)]
-    ]);
+        const keyboard = Markup.inlineKeyboard([
+            [Markup.button.webApp('🚀 Подняться в рейтинге!', MINI_APP_URL)]
+        ]);
 
         await ctx.reply(leaderboardText, {
-        parse_mode: 'Markdown',
-        ...keyboard
-    });
-
+            parse_mode: 'HTML',
+            ...keyboard
+        });
     } catch (error) {
         console.error('❌ Leaderboard command error:', error);
         await ctx.reply('😓 Ошибка получения рейтинга. Попробуйте позже.');
@@ -691,8 +626,7 @@ bot.action('stats', async (ctx) => {
             Object.values(doomSession.enemiesKilled).reduce((a, b) => a + b, 0) : 0;
         const playTimeMinutes = doomSession ?
             Math.floor(doomSession.stats.totalPlayTime / 60) : 0;
-        const achievementsCount = (user.achievementsUnlocked?.length || 0) + 
-                                 (doomSession?.achievements?.length || 0);
+        const achievementsCount = (doomSession?.achievements?.length || 0);
 
         // Определяем ранг
         const getRank = (level) => {
@@ -769,7 +703,7 @@ bot.action('achievements', async (ctx) => {
         const itemsCollected = doomSession ? Object.values(doomSession.itemsCollected).reduce((a, b) => a + b, 0) : 0;
         const doomAchievements = doomSession?.achievements || [];
         const globalAchievements = user.achievementsUnlocked || [];
-        const totalUnlocked = doomAchievements.length + globalAchievements.length;
+        const totalUnlocked = doomAchievements.length;
 
         let achievementsText = `🏆 **Достижения ${user.username || user.firstName}**\n\n`;
 
