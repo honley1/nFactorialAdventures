@@ -45,7 +45,9 @@ class NFactorialDoom {
                 id: 'arman',
                 name: 'Арман Сулейменов',
                 x: 2, y: 2,
-                sprite: '👨‍💻',
+                sprite: '👨‍💻', // Fallback emoji
+                imagePath: '/images/npcs/arman.png',
+                audioPath: '/sounds/arman.mp3',
                 dialogue: [
                     'Добро пожаловать в nFactorial DOOM!',
                     'Тебе предстоит пройти через лабиринт буткемпа.',
@@ -57,10 +59,26 @@ class NFactorialDoom {
                 id: 'baha',
                 name: 'Бахауддин',
                 x: 14, y: 2,
-                sprite: '🧑‍🎓',
+                sprite: '🧑‍🎓', // Fallback emoji
+                imagePath: '/images/npcs/baha.png',
+                audioPath: '/sounds/baha.mp3',
                 dialogue: [
                     'Здесь полно дедлайнов! Будь осторожен!',
                     'Если кончится мотивация, игра закончится...'
+                ],
+                currentDialogue: 0
+            },
+            {
+                id: 'boss',
+                name: 'Бернар',
+                x: 8, y: 12,
+                sprite: '👹', // Fallback emoji
+                imagePath: '/images/npcs/boss.png',
+                audioPath: '/sounds/boss.mp3',
+                dialogue: [
+                    'Ха! Ты дошел до меня, новичок!',
+                    'Я - финальный босс этого лабиринта!',
+                    'Покажи мне, что ты умеешь!'
                 ],
                 currentDialogue: 0
             }
@@ -107,6 +125,11 @@ class NFactorialDoom {
         this.imagesLoaded = false;
         this.loadEnemyImages();
         
+        // Система изображений NPCs
+        this.npcImages = {};
+        this.npcImagesLoaded = false;
+        this.loadNPCImages();
+        
         // Canvas и контекст
         this.canvas = null;
         this.ctx = null;
@@ -140,7 +163,7 @@ class NFactorialDoom {
     async init() {
         console.log('🎮 Инициализация nFactorial DOOM...');
         
-        // Добавляем глобальную функцию для отладки
+        // Добавляем глобальные функции для отладки
         window.debugImages = () => this.checkImageStatus();
         window.testDeadlineImage = () => {
             const img = this.enemyImages['deadline'];
@@ -152,7 +175,25 @@ class NFactorialDoom {
                 console.log('❌ deadline изображение не найдено!');
             }
         };
-        console.log('🔧 Добавлены функции window.debugImages() и window.testDeadlineImage() для отладки');
+        window.testNPCImages = () => {
+            console.log('🧪 Тестирование NPC изображений...');
+            Object.keys(this.npcImages).forEach(id => {
+                const img = this.npcImages[id];
+                if (img && img.complete && img.naturalWidth > 0) {
+                    console.log(`✅ ${id}.png загружен: ${img.naturalWidth}x${img.naturalHeight}`);
+                    this.ctx.drawImage(img, 100 + (id === 'baha' ? 70 : 0), 100, 64, 64);
+                } else {
+                    console.log(`❌ ${id}.png не загружен`);
+                }
+            });
+        };
+        
+        window.forceNPCSpawn = () => {
+            console.log('🧪 Принудительное появление NPCs...');
+            this.npcs = this.npcTemplates.map(npc => ({ ...npc }));
+            console.log('👥 NPCs принудительно добавлены:', this.npcs);
+        };
+        console.log('🔧 Добавлены функции window.debugImages(), window.testDeadlineImage(), window.testNPCImages() и window.forceNPCSpawn() для отладки');
         
         try {
             // Инициализация Telegram
@@ -1022,20 +1063,13 @@ class NFactorialDoom {
 
     // Воспроизведение голоса NPC
     playNPCVoice(npc) {
-        let voiceFile = '';
-        if (npc.id === 'arman') {
-            voiceFile = 'arman.mp3';
-        } else if (npc.id === 'baha') {
-            voiceFile = 'baha.mp3';
-        }
-        
-        if (voiceFile) {
-            const audio = new Audio(`sounds/${voiceFile}`);
+        if (npc.audioPath) {
+            const audio = new Audio(npc.audioPath);
             audio.volume = this.audioManager.volume;
             audio.play().catch(error => {
                 console.warn(`⚠️ Ошибка воспроизведения голоса ${npc.name}:`, error);
             });
-            console.log(`🎵 Воспроизводится голос ${npc.name}: ${voiceFile}`);
+            console.log(`🎵 Воспроизводится голос ${npc.name}: ${npc.audioPath}`);
         }
     }
 
@@ -1044,6 +1078,9 @@ class NFactorialDoom {
         this.dialogue.active = true;
         this.dialogue.npc = npc;
         this.dialogue.messageIndex = 0;
+        
+        // Воспроизводим голос NPC
+        this.playNPCVoice(npc);
         
         this.showDialogue();
     }
@@ -1060,7 +1097,25 @@ class NFactorialDoom {
         
         npcName.textContent = npc.name;
         dialogueMessage.textContent = message;
-        npcAvatar.textContent = npc.sprite;
+        
+        // Пытаемся использовать PNG изображение, если доступно
+        const npcImage = this.npcImages[npc.id];
+        if (npcImage && npcImage.complete && npcImage.naturalWidth > 0) {
+            // Очищаем текст и устанавливаем изображение
+            npcAvatar.textContent = '';
+            npcAvatar.style.backgroundImage = `url(${npc.imagePath})`;
+            npcAvatar.style.backgroundSize = 'contain';
+            npcAvatar.style.backgroundRepeat = 'no-repeat';
+            npcAvatar.style.backgroundPosition = 'center';
+            npcAvatar.style.width = '48px';
+            npcAvatar.style.height = '48px';
+        } else {
+            // Fallback на эмодзи
+            npcAvatar.textContent = npc.sprite;
+            npcAvatar.style.backgroundImage = 'none';
+            npcAvatar.style.width = 'auto';
+            npcAvatar.style.height = 'auto';
+        }
         
         dialogueBox.classList.add('active');
     }
@@ -1162,7 +1217,7 @@ class NFactorialDoom {
     // Рендеринг спрайтов
     renderSprites() {
         const sprites = [
-            ...this.npcs.map(npc => ({ ...npc, category: 'npc', type: 'npc' })),
+            ...this.npcs.map(npc => ({ ...npc, category: 'npc' })), // Убираем type: 'npc' для NPCs
             ...this.enemies.filter(enemy => enemy.health > 0).map(enemy => ({ ...enemy, category: 'enemy' })),
             ...this.items.map(item => ({ ...item, category: 'item', type: 'item' }))
         ];
@@ -1214,16 +1269,26 @@ class NFactorialDoom {
     renderSpriteImage(sprite, screenX, screenY, spriteSize, distance) {
         // Определяем тип спрайта для поиска изображения
         let spriteType = null;
+        let img = null;
+        
         if (sprite.type) {
             spriteType = sprite.type; // Для врагов
-        } else if (sprite.id && sprite.id.includes('npc')) {
-            spriteType = 'npc'; // Для NPC (можно добавить отдельные изображения)
+            img = this.enemyImages[spriteType];
+        } else if (sprite.id && (sprite.id === 'arman' || sprite.id === 'baha' || sprite.id === 'boss')) {
+            // Для NPC используем их ID для поиска изображения
+            img = this.npcImages[sprite.id];
+            
+            // Дополнительная отладка для NPC
+            console.log(`🎯 NPC ${sprite.id}:`, {
+                hasImage: !!img,
+                complete: img?.complete,
+                naturalWidth: img?.naturalWidth,
+                npcImagesKeys: Object.keys(this.npcImages),
+                npcImagesLoaded: this.npcImagesLoaded
+            });
         }
         
-        // Проверяем есть ли загруженное изображение
-        const img = this.enemyImages[spriteType];
-        const hasImage = spriteType && 
-                         img && 
+        const hasImage = img && 
                          img.complete && 
                          img.naturalWidth > 0;
         
@@ -1243,9 +1308,25 @@ class NFactorialDoom {
             });
         }
         
+        // ОТЛАДКА для NPCs
+        if (sprite.id && (sprite.id === 'arman' || sprite.id === 'baha' || sprite.id === 'boss')) {
+            console.log(`🔍 Рендер NPC ${sprite.id}:`, {
+                spriteId: sprite.id,
+                hasImage: hasImage,
+                imgExists: !!img,
+                complete: img?.complete,
+                naturalWidth: img?.naturalWidth,
+                naturalHeight: img?.naturalHeight,
+                path: img?.src,
+                npcImagesLoaded: this.npcImagesLoaded,
+                npcImagesKeys: Object.keys(this.npcImages)
+            });
+        }
+        
         if (hasImage) {
             // Рендерим PNG изображение
-            console.log(`🖼️ РЕНДЕРИМ PNG для ${spriteType}! Размер: ${spriteSize}px`);
+            const entityName = spriteType || sprite.id || 'unknown';
+            console.log(`🖼️ РЕНДЕРИМ PNG для ${entityName}! Размер: ${spriteSize}px`);
             
             // Применяем затемнение для далеких объектов
             const alpha = distance > 3 ? 0.6 : 1.0;
@@ -1261,8 +1342,9 @@ class NFactorialDoom {
             this.ctx.globalAlpha = 1.0;
         } else {
             // Fallback на эмодзи
-            if (spriteType === 'deadline') {
-                console.log(`❌ PNG НЕ НАЙДЕН для ${spriteType}, используем эмодзи fallback`);
+            const entityName = spriteType || sprite.id || 'unknown';
+            if (spriteType === 'deadline' || (sprite.id && (sprite.id === 'arman' || sprite.id === 'baha' || sprite.id === 'boss'))) {
+                console.log(`❌ PNG НЕ НАЙДЕН для ${entityName}, используем эмодзи fallback`);
             }
             this.ctx.font = `${spriteSize}px Arial`;
             this.ctx.textAlign = 'center';
@@ -1826,6 +1908,15 @@ class NFactorialDoom {
             this.npcs = this.npcTemplates.map(npc => ({ ...npc }));
             this.showNotification('Все враги побеждены! Появились NPC для разговора!', 'success');
             console.log('👥 NPC появились после уничтожения всех врагов');
+            
+            // Проверяем статус NPC изображений
+            console.log('🔍 Проверка NPC изображений при появлении:');
+            console.log('npcImages:', this.npcImages);
+            console.log('npcImagesLoaded:', this.npcImagesLoaded);
+            Object.keys(this.npcImages).forEach(id => {
+                const img = this.npcImages[id];
+                console.log(`  ${id}: complete=${img?.complete}, width=${img?.naturalWidth}`);
+            });
         }
     }
 
@@ -1974,6 +2065,40 @@ class NFactorialDoom {
         });
     }
 
+    // Загрузка изображений NPCs
+    loadNPCImages() {
+        const npcIds = ['arman', 'baha', 'boss'];
+        let loadedCount = 0;
+        
+        console.log('🔄 Начинаем загрузку изображений NPCs...');
+        
+        npcIds.forEach(id => {
+            const img = new Image();
+            const imagePath = `./images/npcs/${id}.png`;
+            
+            img.onload = () => {
+                loadedCount++;
+                console.log(`✅ Загружено изображение NPC: ${imagePath} для ${id} (${img.width}x${img.height})`);
+                if (loadedCount === npcIds.length) {
+                    this.npcImagesLoaded = true;
+                    console.log('🎨 Все изображения NPCs загружены!');
+                }
+            };
+            img.onerror = (e) => {
+                console.log(`❌ Ошибка загрузки NPC изображения: ${imagePath}`, e);
+                console.log(`❌ Используем эмодзи для ${id}`);
+                loadedCount++;
+                if (loadedCount === npcIds.length) {
+                    this.npcImagesLoaded = true;
+                }
+            };
+            
+            console.log(`🔄 Загружаем NPC изображение: ${imagePath} для ${id}`);
+            img.src = imagePath;
+            this.npcImages[id] = img;
+        });
+    }
+
     // Проверка статуса загрузки изображений (для отладки)
     checkImageStatus() {
         console.log('📊 Статус изображений врагов:');
@@ -1983,6 +2108,16 @@ class NFactorialDoom {
         Object.keys(this.enemyImages).forEach(type => {
             const img = this.enemyImages[type];
             console.log(`  ${type}: loaded=${img.complete}, size=${img.naturalWidth}x${img.naturalHeight}, src=${img.src}`);
+            console.log(`     error occurred:`, img.onerror ? 'да' : 'нет');
+        });
+        
+        console.log('📊 Статус изображений NPCs:');
+        console.log('📊 npcImages object:', this.npcImages);
+        console.log('📊 npcImagesLoaded flag:', this.npcImagesLoaded);
+        
+        Object.keys(this.npcImages).forEach(id => {
+            const img = this.npcImages[id];
+            console.log(`  ${id}: loaded=${img.complete}, size=${img.naturalWidth}x${img.naturalHeight}, src=${img.src}`);
             console.log(`     error occurred:`, img.onerror ? 'да' : 'нет');
         });
         
