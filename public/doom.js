@@ -526,6 +526,11 @@ class NFactorialDoom {
     setupEventListeners() {
         // Кнопки меню
         document.getElementById('start-game')?.addEventListener('click', () => this.startGame());
+        document.getElementById('respawn-btn')?.addEventListener('click', () => {
+            console.log('💀 Принудительный респавн игрока...');
+            this.showNotification('🔄 Респавн...', 'info');
+            this.restartGame();
+        });
         document.getElementById('settings-btn')?.addEventListener('click', () => this.showSettings());
         document.getElementById('leaderboard-btn')?.addEventListener('click', () => this.showLeaderboard());
         
@@ -1535,13 +1540,28 @@ class NFactorialDoom {
         // Сброс диалогов
         this.dialogue = { active: false, npc: null, messageIndex: 0 };
         
+        // Очистка пуль
+        this.bullets = [];
+        
         // Обновляем HUD
         this.updateHUD();
         
         // Перезапуск автоспавна
         this.startAutoSpawn();
         
-        this.resumeGame();
+        // Переходим в игровое состояние
+        this.gameState = 'playing';
+        this.showScreen('game-screen');
+        
+        // Показываем уведомление о респавне
+        this.showNotification('🔄 Респавн завершен!', 'success');
+        
+        console.log('✅ Игрок успешно респавнился:', {
+            position: `${this.player.x}, ${this.player.y}`,
+            health: this.player.health,
+            armor: this.player.armor,
+            ammo: this.player.ammo
+        });
     }
 
     gameOver() {
@@ -1553,8 +1573,14 @@ class NFactorialDoom {
             clearInterval(this.spawnInterval);
         }
         
-        alert('Игра окончена! Тебя одолели баги и дедлайны...');
-        this.goToMenu();
+        // Показываем уведомление о смерти
+        this.showNotification('💀 Ты погиб! Респавн через 1 секунду...', 'error');
+        
+        // Автоматический респавн через 1 секунду
+        setTimeout(() => {
+            console.log('🔄 Автоматический респавн игрока...');
+            this.restartGame();
+        }, 1000);
     }
 
     showSettings() {
