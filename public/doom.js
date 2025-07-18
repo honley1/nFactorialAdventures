@@ -73,63 +73,11 @@ class NFactorialDoom {
             { type: 'hack', health: 45, speed: 0.028, damage: 18, sprite: '👤', color: '#0000ff' }
         ];
 
-        // Враги - размещаем их по всей карте (в 6 раз больше)
-        this.enemies = [
-            // Первый ряд врагов
-            { id: 'bug1', type: 'bug', x: 2, y: 2, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline1', type: 'deadline', x: 4, y: 2, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error1', type: 'error', x: 6, y: 2, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash1', type: 'crash', x: 8, y: 2, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus1', type: 'virus', x: 10, y: 2, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack1', type: 'hack', x: 12, y: 2, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Второй ряд врагов
-            { id: 'bug2', type: 'bug', x: 2, y: 4, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline2', type: 'deadline', x: 4, y: 4, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error2', type: 'error', x: 6, y: 4, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash2', type: 'crash', x: 8, y: 4, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus2', type: 'virus', x: 10, y: 4, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack2', type: 'hack', x: 12, y: 4, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Третий ряд врагов
-            { id: 'bug3', type: 'bug', x: 2, y: 6, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline3', type: 'deadline', x: 4, y: 6, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error3', type: 'error', x: 6, y: 6, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash3', type: 'crash', x: 8, y: 6, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus3', type: 'virus', x: 10, y: 6, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack3', type: 'hack', x: 12, y: 6, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Четвертый ряд врагов
-            { id: 'bug4', type: 'bug', x: 2, y: 8, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline4', type: 'deadline', x: 4, y: 8, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error4', type: 'error', x: 6, y: 8, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash4', type: 'crash', x: 8, y: 8, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus4', type: 'virus', x: 10, y: 8, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack4', type: 'hack', x: 12, y: 8, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Пятый ряд врагов
-            { id: 'bug5', type: 'bug', x: 2, y: 10, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline5', type: 'deadline', x: 4, y: 10, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error5', type: 'error', x: 6, y: 10, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash5', type: 'crash', x: 8, y: 10, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus5', type: 'virus', x: 10, y: 10, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack5', type: 'hack', x: 12, y: 10, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Шестой ряд врагов
-            { id: 'bug6', type: 'bug', x: 2, y: 12, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline6', type: 'deadline', x: 4, y: 12, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error6', type: 'error', x: 6, y: 12, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash6', type: 'crash', x: 8, y: 12, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus6', type: 'virus', x: 10, y: 12, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack6', type: 'hack', x: 12, y: 12, health: 45, sprite: '👤', lastAttack: 0 }
-        ];
+        // Враги - начинаем с пустого списка, будут появляться каждые 10 секунд
+        this.enemies = [];
 
-        // Предметы для сбора - размещаем в безопасных местах
-        this.items = [
-            { id: 'coffee1', type: 'coffee', x: 2, y: 8, sprite: '☕', value: 25 },
-            { id: 'book1', type: 'knowledge', x: 14, y: 2, sprite: '📚', value: 10 },
-            { id: 'energy1', type: 'motivation', x: 2, y: 12, sprite: '💪', value: 20 }
-        ];
+        // Предметы - начинаем с пустого списка, будут появляться каждые 10 секунд
+        this.items = [];
 
         // Настройки raycasting
         this.fov = Math.PI / 3;      // 60° поле зрения
@@ -1479,63 +1427,11 @@ class NFactorialDoom {
             moveSpeed: 0.05, turnSpeed: 0.03
         };
         
-        // Сброс врагов - возвращаем на исходные позиции (все 36 врагов)
-        this.enemies = [
-            // Первый ряд врагов
-            { id: 'bug1', type: 'bug', x: 2, y: 2, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline1', type: 'deadline', x: 4, y: 2, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error1', type: 'error', x: 6, y: 2, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash1', type: 'crash', x: 8, y: 2, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus1', type: 'virus', x: 10, y: 2, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack1', type: 'hack', x: 12, y: 2, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Второй ряд врагов
-            { id: 'bug2', type: 'bug', x: 2, y: 4, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline2', type: 'deadline', x: 4, y: 4, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error2', type: 'error', x: 6, y: 4, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash2', type: 'crash', x: 8, y: 4, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus2', type: 'virus', x: 10, y: 4, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack2', type: 'hack', x: 12, y: 4, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Третий ряд врагов
-            { id: 'bug3', type: 'bug', x: 2, y: 6, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline3', type: 'deadline', x: 4, y: 6, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error3', type: 'error', x: 6, y: 6, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash3', type: 'crash', x: 8, y: 6, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus3', type: 'virus', x: 10, y: 6, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack3', type: 'hack', x: 12, y: 6, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Четвертый ряд врагов
-            { id: 'bug4', type: 'bug', x: 2, y: 8, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline4', type: 'deadline', x: 4, y: 8, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error4', type: 'error', x: 6, y: 8, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash4', type: 'crash', x: 8, y: 8, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus4', type: 'virus', x: 10, y: 8, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack4', type: 'hack', x: 12, y: 8, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Пятый ряд врагов
-            { id: 'bug5', type: 'bug', x: 2, y: 10, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline5', type: 'deadline', x: 4, y: 10, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error5', type: 'error', x: 6, y: 10, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash5', type: 'crash', x: 8, y: 10, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus5', type: 'virus', x: 10, y: 10, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack5', type: 'hack', x: 12, y: 10, health: 45, sprite: '👤', lastAttack: 0 },
-            
-            // Шестой ряд врагов
-            { id: 'bug6', type: 'bug', x: 2, y: 12, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline6', type: 'deadline', x: 4, y: 12, health: 50, sprite: '⏰', lastAttack: 0 },
-            { id: 'error6', type: 'error', x: 6, y: 12, health: 25, sprite: '💥', lastAttack: 0 },
-            { id: 'crash6', type: 'crash', x: 8, y: 12, health: 40, sprite: '💻', lastAttack: 0 },
-            { id: 'virus6', type: 'virus', x: 10, y: 12, health: 35, sprite: '🦠', lastAttack: 0 },
-            { id: 'hack6', type: 'hack', x: 12, y: 12, health: 45, sprite: '👤', lastAttack: 0 }
-        ];
+        // Сброс врагов - очищаем список
+        this.enemies = [];
         
-        // Сброс предметов
-        this.items = [
-            { id: 'coffee1', type: 'coffee', x: 2, y: 8, sprite: '☕', value: 25 },
-            { id: 'book1', type: 'knowledge', x: 14, y: 2, sprite: '📚', value: 10 },
-            { id: 'energy1', type: 'motivation', x: 2, y: 12, sprite: '💪', value: 20 }
-        ];
+        // Сброс предметов - очищаем список
+        this.items = [];
         
         // Сброс диалогов
         this.dialogue = { active: false, npc: null, messageIndex: 0 };
@@ -1719,16 +1615,21 @@ class NFactorialDoom {
         // Спавн каждые 10 секунд
         this.spawnInterval = setInterval(() => {
             if (this.gameState === 'playing') {
-                // Случайно выбираем что заспавнить: ресурс или врага
-                if (Math.random() < 0.7) {
-                    this.spawnRandomItem();  // 70% шанс на ресурс
-                } else {
-                    this.spawnRandomEnemy(); // 30% шанс на врага
+                // Спавним 5 врагов
+                for (let i = 0; i < 5; i++) {
+                    this.spawnRandomEnemy();
                 }
+                
+                // Спавним 5 ресурсов
+                for (let i = 0; i < 5; i++) {
+                    this.spawnRandomItem();
+                }
+                
+                console.log('📦 Заспавнено 5 врагов и 5 ресурсов');
             }
         }, 10000); // 10 секунд
         
-        console.log('📦 Автоспавн ресурсов и врагов запущен (каждые 10 сек)');
+        console.log('📦 Автоспавн запущен: 5 врагов + 5 ресурсов каждые 10 сек');
     }
 
     // Спавн случайного ресурса
