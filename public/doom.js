@@ -63,10 +63,65 @@ class NFactorialDoom {
             }
         ];
 
-        // Враги - размещаем их подальше от игрока
+        // Система типов врагов с разными характеристиками
+        this.enemyTypes = [
+            { type: 'bug', health: 30, speed: 0.02, damage: 10, sprite: '🐛', color: '#ff4444' },
+            { type: 'deadline', health: 50, speed: 0.03, damage: 15, sprite: '⏰', color: '#ff8800' },
+            { type: 'error', health: 25, speed: 0.025, damage: 8, sprite: '💥', color: '#ff0000' },
+            { type: 'crash', health: 40, speed: 0.015, damage: 20, sprite: '💻', color: '#8800ff' },
+            { type: 'virus', health: 35, speed: 0.035, damage: 12, sprite: '🦠', color: '#00ff00' },
+            { type: 'hack', health: 45, speed: 0.028, damage: 18, sprite: '👤', color: '#0000ff' }
+        ];
+
+        // Враги - размещаем их по всей карте (в 6 раз больше)
         this.enemies = [
-            { id: 'bug1', type: 'bug', x: 3, y: 3, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline1', type: 'deadline', x: 13, y: 13, health: 50, sprite: '⏰', lastAttack: 0 }
+            // Первый ряд врагов
+            { id: 'bug1', type: 'bug', x: 2, y: 2, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline1', type: 'deadline', x: 4, y: 2, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error1', type: 'error', x: 6, y: 2, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash1', type: 'crash', x: 8, y: 2, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus1', type: 'virus', x: 10, y: 2, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack1', type: 'hack', x: 12, y: 2, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Второй ряд врагов
+            { id: 'bug2', type: 'bug', x: 2, y: 4, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline2', type: 'deadline', x: 4, y: 4, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error2', type: 'error', x: 6, y: 4, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash2', type: 'crash', x: 8, y: 4, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus2', type: 'virus', x: 10, y: 4, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack2', type: 'hack', x: 12, y: 4, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Третий ряд врагов
+            { id: 'bug3', type: 'bug', x: 2, y: 6, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline3', type: 'deadline', x: 4, y: 6, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error3', type: 'error', x: 6, y: 6, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash3', type: 'crash', x: 8, y: 6, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus3', type: 'virus', x: 10, y: 6, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack3', type: 'hack', x: 12, y: 6, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Четвертый ряд врагов
+            { id: 'bug4', type: 'bug', x: 2, y: 8, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline4', type: 'deadline', x: 4, y: 8, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error4', type: 'error', x: 6, y: 8, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash4', type: 'crash', x: 8, y: 8, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus4', type: 'virus', x: 10, y: 8, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack4', type: 'hack', x: 12, y: 8, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Пятый ряд врагов
+            { id: 'bug5', type: 'bug', x: 2, y: 10, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline5', type: 'deadline', x: 4, y: 10, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error5', type: 'error', x: 6, y: 10, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash5', type: 'crash', x: 8, y: 10, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus5', type: 'virus', x: 10, y: 10, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack5', type: 'hack', x: 12, y: 10, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Шестой ряд врагов
+            { id: 'bug6', type: 'bug', x: 2, y: 12, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline6', type: 'deadline', x: 4, y: 12, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error6', type: 'error', x: 6, y: 12, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash6', type: 'crash', x: 8, y: 12, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus6', type: 'virus', x: 10, y: 12, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack6', type: 'hack', x: 12, y: 12, health: 45, sprite: '👤', lastAttack: 0 }
         ];
 
         // Предметы для сбора - размещаем в безопасных местах
@@ -808,9 +863,10 @@ class NFactorialDoom {
             const attackDistance = 0.5; // Минимальное расстояние для атаки
             
             if (distance > attackDistance) {
-                // Враги всегда преследуют игрока если он не слишком близко
-                // Увеличена скорость в 2 раза - очень страшно! 😈
-                const moveSpeed = enemy.type === 'deadline' ? 0.03 : 0.02;
+                // Находим характеристики врага из системы типов
+                const enemyType = this.enemyTypes.find(et => et.type === enemy.type);
+                const moveSpeed = enemyType ? enemyType.speed : 0.02; // fallback
+                
                 const moveX = (dx / distance) * moveSpeed;
                 const moveY = (dy / distance) * moveSpeed;
                 
@@ -843,7 +899,9 @@ class NFactorialDoom {
             if (distance < 0.5) {
                 // Проверяем кулдаун атаки (1 секунда)
                 if (currentTime - enemy.lastAttack > 1000) {
-                    const damage = enemy.type === 'deadline' ? 10 : 5;
+                    // Находим характеристики врага из системы типов
+                    const enemyType = this.enemyTypes.find(et => et.type === enemy.type);
+                    const damage = enemyType ? enemyType.damage : 10; // fallback
                     console.log(`💥 ${enemy.type} атакует! Урон: ${damage}, HP было: ${this.player.health}`);
                     
                     // Звук получения урона
@@ -1416,10 +1474,55 @@ class NFactorialDoom {
             moveSpeed: 0.05, turnSpeed: 0.03
         };
         
-        // Сброс врагов - возвращаем на исходные позиции
+        // Сброс врагов - возвращаем на исходные позиции (все 36 врагов)
         this.enemies = [
-            { id: 'bug1', type: 'bug', x: 3, y: 3, health: 30, sprite: '🐛', lastAttack: 0 },
-            { id: 'deadline1', type: 'deadline', x: 13, y: 13, health: 50, sprite: '⏰', lastAttack: 0 }
+            // Первый ряд врагов
+            { id: 'bug1', type: 'bug', x: 2, y: 2, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline1', type: 'deadline', x: 4, y: 2, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error1', type: 'error', x: 6, y: 2, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash1', type: 'crash', x: 8, y: 2, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus1', type: 'virus', x: 10, y: 2, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack1', type: 'hack', x: 12, y: 2, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Второй ряд врагов
+            { id: 'bug2', type: 'bug', x: 2, y: 4, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline2', type: 'deadline', x: 4, y: 4, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error2', type: 'error', x: 6, y: 4, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash2', type: 'crash', x: 8, y: 4, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus2', type: 'virus', x: 10, y: 4, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack2', type: 'hack', x: 12, y: 4, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Третий ряд врагов
+            { id: 'bug3', type: 'bug', x: 2, y: 6, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline3', type: 'deadline', x: 4, y: 6, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error3', type: 'error', x: 6, y: 6, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash3', type: 'crash', x: 8, y: 6, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus3', type: 'virus', x: 10, y: 6, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack3', type: 'hack', x: 12, y: 6, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Четвертый ряд врагов
+            { id: 'bug4', type: 'bug', x: 2, y: 8, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline4', type: 'deadline', x: 4, y: 8, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error4', type: 'error', x: 6, y: 8, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash4', type: 'crash', x: 8, y: 8, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus4', type: 'virus', x: 10, y: 8, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack4', type: 'hack', x: 12, y: 8, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Пятый ряд врагов
+            { id: 'bug5', type: 'bug', x: 2, y: 10, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline5', type: 'deadline', x: 4, y: 10, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error5', type: 'error', x: 6, y: 10, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash5', type: 'crash', x: 8, y: 10, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus5', type: 'virus', x: 10, y: 10, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack5', type: 'hack', x: 12, y: 10, health: 45, sprite: '👤', lastAttack: 0 },
+            
+            // Шестой ряд врагов
+            { id: 'bug6', type: 'bug', x: 2, y: 12, health: 30, sprite: '🐛', lastAttack: 0 },
+            { id: 'deadline6', type: 'deadline', x: 4, y: 12, health: 50, sprite: '⏰', lastAttack: 0 },
+            { id: 'error6', type: 'error', x: 6, y: 12, health: 25, sprite: '💥', lastAttack: 0 },
+            { id: 'crash6', type: 'crash', x: 8, y: 12, health: 40, sprite: '💻', lastAttack: 0 },
+            { id: 'virus6', type: 'virus', x: 10, y: 12, health: 35, sprite: '🦠', lastAttack: 0 },
+            { id: 'hack6', type: 'hack', x: 12, y: 12, health: 45, sprite: '👤', lastAttack: 0 }
         ];
         
         // Сброс предметов
@@ -1652,19 +1755,14 @@ class NFactorialDoom {
 
     // Спавн случайного врага
     spawnRandomEnemy() {
-        // Не спавним если уже много врагов на карте (увеличено в 3 раза!)
-        if (this.enemies.length >= 18) {
+        // Не спавним если уже много врагов на карте (увеличено для большего количества врагов!)
+        if (this.enemies.length >= 50) {
             console.log('👹 Слишком много врагов на карте, спавн отменен');
             return;
         }
 
-        const enemyTypes = [
-            { type: 'bug', sprite: '🐛', health: 30 },
-            { type: 'deadline', sprite: '⏰', health: 50 }
-        ];
-        
-        // Выбираем случайный тип врага
-        const randomType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        // Используем систему типов врагов из конструктора
+        const randomType = this.enemyTypes[Math.floor(Math.random() * this.enemyTypes.length)];
         
         // Находим свободное место на карте
         let spawnX, spawnY;
@@ -1859,20 +1957,19 @@ class NFactorialDoom {
 
     // Загрузка изображений врагов
     loadEnemyImages() {
-        const enemyTypes = ['bug', 'deadline'];
+        const enemyTypes = ['bug', 'deadline', 'error', 'crash', 'virus', 'hack'];
         let loadedCount = 0;
         
         console.log('🔄 Начинаем загрузку изображений врагов...');
         
         enemyTypes.forEach(type => {
             const img = new Image();
-            // Используем deadline.png для обоих типов врагов
-            const imageName = type === 'bug' ? 'bug' : 'deadline';
-            const imagePath = `./images/enemies/${imageName}.png`;
+            // Каждый тип врага использует свой PNG файл
+            const imagePath = `./images/enemies/${type}.png`;
             
             img.onload = () => {
                 loadedCount++;
-                console.log(`✅ Загружено изображение: ${imagePath} (${img.width}x${img.height})`);
+                console.log(`✅ Загружено изображение: ${imagePath} для типа ${type} (${img.width}x${img.height})`);
                 if (loadedCount === enemyTypes.length) {
                     this.imagesLoaded = true;
                     console.log('🎨 Все изображения врагов загружены!');
@@ -1888,9 +1985,8 @@ class NFactorialDoom {
                 }
             };
             
-            console.log(`🔄 Загружаем: ${imagePath}`);
-            // Пробуем разные варианты пути
-            img.src = `images/enemies/${imageName}.png`;
+            console.log(`🔄 Загружаем: ${imagePath} для типа ${type}`);
+            img.src = `images/enemies/${type}.png`;
             this.enemyImages[type] = img;
         });
     }
