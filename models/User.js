@@ -223,7 +223,7 @@ userSchema.statics.getLeaderboard = function(limit = 10) {
   return this.find({})
     .sort({ 'score.total': -1 })
     .limit(limit)
-    .select('username avatar score.total currentWeek level')
+    .select('username avatar score.total score.weekly currentWeek level experience achievementsUnlocked')
     .lean();
 };
 
@@ -231,7 +231,7 @@ userSchema.statics.getWeeklyLeaderboard = function(limit = 10) {
   return this.find({})
     .sort({ 'score.weekly': -1 })
     .limit(limit)
-    .select('username avatar score.weekly currentWeek level')
+    .select('username avatar score.total score.weekly currentWeek level experience achievementsUnlocked')
     .lean();
 };
 

@@ -3,102 +3,62 @@ const router = express.Router();
 const User = require('../models/User');
 const GameSession = require('../models/GameSession');
 const Achievement = require('../models/Achievement');
+const DoomSession = require('../models/DoomSession');
 
 // GET /api/leaderboard - Получить топ игроков
 router.get('/', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
-        const sortBy = req.query.sortBy || 'totalScore'; // totalScore, weekCompleted, fastestTime
+        const sortBy = req.query.sortBy || 'totalScore'; // totalScore, weeklyScore, achievements
         
-        // Получаем всех игроков с их активными сессиями
-        const leaderboardData = await User.aggregate([
-            // Объединяем с игровыми сессиями
-            {
-                $lookup: {
-                    from: 'gamesessions',
-                    localField: 'telegramId',
-                    foreignField: 'telegramId',
-                    as: 'sessions'
-                }
-            },
-            // Добавляем вычисляемые поля
-            {
-                $addFields: {
-                    // Общий счет из всех сессий
-                    totalScore: {
-                        $sum: '$sessions.stats.totalScore'
-                    },
-                    // Максимальная завершенная неделя
-                    highestWeekCompleted: {
-                        $max: '$sessions.currentWeek'
-                    },
-                    // Лучшее время прохождения
-                    fastestCompletion: {
-                        $min: '$sessions.stats.fastestCompletion'
-                    },
-                    // Общее количество достижений
-                    totalAchievements: {
-                        $size: '$achievementsUnlocked'
-                    },
-                    // Активная сессия
-                    activeSession: {
-                        $arrayElemAt: [
-                            {
-                                $filter: {
-                                    input: '$sessions',
-                                    cond: { $eq: ['$$this.isActive', true] }
-                                }
-                            },
-                            0
-                        ]
-                    }
-                }
-            },
-            // Проекция нужных полей
-            {
-                $project: {
-                    _id: 1,
-                    telegramId: 1,
-                    username: 1,
-                    firstName: 1,
-                    lastName: 1,
-                    avatar: 1,
-                    totalScore: 1,
-                    highestWeekCompleted: 1,
-                    fastestCompletion: 1,
-                    totalAchievements: 1,
-                    joinedAt: 1,
-                    resources: '$activeSession.resources',
-                    stats: '$activeSession.stats'
-                }
-            },
-            // Сортировка
-            {
-                $sort: getSortCriteria(sortBy)
-            },
-            // Лимит
-            {
-                $limit: limit
-            }
-        ]);
+        let leaderboardData;
+        
+        if (sortBy === 'weeklyScore') {
+            // Используем статический метод для недельного рейтинга
+            leaderboardData = await User.getWeeklyLeaderboard(limit);
+        } else if (sortBy === 'achievements') {
+            // Рейтинг по достижениям
+            leaderboardData = await User.find({})
+                .sort({ 'achievementsUnlocked': -1 })
+                .limit(limit)
+                .select('username avatar achievementsUnlocked level experience')
+                .lean();
+        } else {
+            // Используем статический метод для общего рейтинга
+            leaderboardData = await User.getLeaderboard(limit);
+        }
 
-        // Добавляем позиции
-        const leaderboard = leaderboardData.map((player, index) => ({
-            position: index + 1,
-            id: player._id,
-            telegramId: player.telegramId,
-            username: player.username || player.firstName || 'Анонимный игрок',
-            firstName: player.firstName,
-            lastName: player.lastName,
-            avatar: player.avatar || '🎮',
-            totalScore: player.totalScore || 0,
-            highestWeekCompleted: player.highestWeekCompleted || 0,
-            fastestCompletion: player.fastestCompletion || null,
-            totalAchievements: player.totalAchievements || 0,
-            joinedAt: player.joinedAt,
-            resources: player.resources,
-            stats: player.stats
-        }));
+        // Получаем DOOM сессии для всех пользователей
+        const userIds = leaderboardData.map(player => player._id);
+        const doomSessions = await DoomSession.find({ userId: { $in: userIds } });
+        
+        // Создаем мапу для быстрого поиска DOOM сессий
+        const doomSessionsMap = {};
+        doomSessions.forEach(session => {
+            doomSessionsMap[session.userId.toString()] = session;
+        });
+
+        // Добавляем позиции и форматируем данные
+        const leaderboard = leaderboardData.map((player, index) => {
+            const doomSession = doomSessionsMap[player._id.toString()];
+            const globalAchievements = player.achievementsUnlocked?.length || 0;
+            const doomAchievements = doomSession?.achievements?.length || 0;
+            const totalAchievements = globalAchievements + doomAchievements;
+            
+            return {
+                position: index + 1,
+                id: player._id,
+                telegramId: player.telegramId,
+                username: player.username || 'Анонимный игрок',
+                avatar: player.avatar || '🎮',
+                level: player.level || 1,
+                experience: player.experience || 0,
+                totalScore: player.score?.total || 0,
+                weeklyScore: player.score?.weekly || 0,
+                totalAchievements: totalAchievements,
+                currentWeek: player.currentWeek || 1
+            };
+        });
 
         res.json({
             success: true,
@@ -312,7 +272,6 @@ router.get('/achievements/:telegramId', async (req, res) => {
         }
         
         // Получаем DOOM сессию для проверки простых достижений
-        const DoomSession = require('../models/DoomSession');
         const doomSession = await DoomSession.findOne({ userId: user._id });
         
         // Формируем ответ с достижениями

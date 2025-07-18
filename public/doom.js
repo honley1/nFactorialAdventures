@@ -474,11 +474,6 @@ class NFactorialDoom {
     setupEventListeners() {
         // Кнопки меню
         document.getElementById('start-game')?.addEventListener('click', () => this.startGame());
-        document.getElementById('respawn-btn')?.addEventListener('click', () => {
-            console.log('💀 Принудительный респавн игрока...');
-            this.showNotification('🔄 Респавн...', 'info');
-            this.restartGame();
-        });
         document.getElementById('settings-btn')?.addEventListener('click', () => this.showSettings());
         document.getElementById('leaderboard-btn')?.addEventListener('click', () => this.showLeaderboard());
         
@@ -490,6 +485,9 @@ class NFactorialDoom {
         // Настройки
         document.getElementById('save-settings')?.addEventListener('click', () => this.saveSettings());
         document.getElementById('close-settings')?.addEventListener('click', () => this.closeSettings());
+        
+        // Рейтинг
+        document.getElementById('close-leaderboard')?.addEventListener('click', () => this.closeLeaderboard());
         
         // Настройки звука
         const volumeSlider = document.getElementById('volume-slider');
@@ -1493,8 +1491,10 @@ class NFactorialDoom {
         this.closeSettings();
     }
 
-    showLeaderboard() {
-        alert('Лидерборд пока в разработке!');
+    async showLeaderboard() {
+        this.showScreen('leaderboard-screen');
+        this.setupLeaderboardTabs();
+        await this.loadLeaderboardData();
     }
 
     delay(ms) {
@@ -1941,6 +1941,149 @@ class NFactorialDoom {
         }
     }
 
+    // === СИСТЕМА РЕЙТИНГА ===
+    
+    closeLeaderboard() {
+        this.showScreen('menu-screen');
+    }
+    
+    setupLeaderboardTabs() {
+        const tabs = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.leaderboard-tab');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                
+                // Убираем активный класс со всех вкладок
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной вкладке
+                tab.classList.add('active');
+                document.getElementById(`${targetTab}-leaderboard`).classList.add('active');
+            });
+        });
+    }
+    
+    async loadLeaderboardData() {
+        // Загружаем данные для всех вкладок
+        await this.loadGlobalLeaderboard();
+        await this.loadWeeklyLeaderboard();
+        await this.loadAchievementsLeaderboard();
+    }
+    
+    async loadGlobalLeaderboard() {
+        const globalList = document.getElementById('global-list');
+        
+        try {
+            // Показываем загрузку
+            globalList.innerHTML = '<div class="loading">Загрузка глобального рейтинга...</div>';
+            
+            const response = await fetch('/api/leaderboard?sortBy=totalScore&limit=10');
+            const data = await response.json();
+            
+            if (data.success) {
+                const players = data.leaderboard.map((player, index) => ({
+                    rank: index + 1,
+                    name: player.username,
+                    level: player.level,
+                    exp: player.totalScore,
+                    enemiesKilled: Math.floor(player.totalScore / 10), // Примерное количество убитых врагов
+                    achievements: player.totalAchievements,
+                    avatar: player.avatar
+                }));
+                
+                globalList.innerHTML = players.map(player => this.createLeaderboardItem(player)).join('');
+            } else {
+                globalList.innerHTML = '<div class="error">Ошибка загрузки данных</div>';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки глобального рейтинга:', error);
+            globalList.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+        }
+    }
+    
+    async loadWeeklyLeaderboard() {
+        const weeklyList = document.getElementById('weekly-list');
+        
+        try {
+            // Показываем загрузку
+            weeklyList.innerHTML = '<div class="loading">Загрузка недельного рейтинга...</div>';
+            
+            const response = await fetch('/api/leaderboard?sortBy=weeklyScore&limit=10');
+            const data = await response.json();
+            
+            if (data.success) {
+                const players = data.leaderboard.map((player, index) => ({
+                    rank: index + 1,
+                    name: player.username,
+                    level: player.level,
+                    exp: player.weeklyScore,
+                    enemiesKilled: Math.floor(player.weeklyScore / 10), // Примерное количество убитых врагов
+                    achievements: player.totalAchievements,
+                    avatar: player.avatar
+                }));
+                
+                weeklyList.innerHTML = players.map(player => this.createLeaderboardItem(player)).join('');
+            } else {
+                weeklyList.innerHTML = '<div class="error">Ошибка загрузки данных</div>';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки недельного рейтинга:', error);
+            weeklyList.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+        }
+    }
+    
+    async loadAchievementsLeaderboard() {
+        const achievementsList = document.getElementById('achievements-list');
+        
+        try {
+            // Показываем загрузку
+            achievementsList.innerHTML = '<div class="loading">Загрузка рейтинга достижений...</div>';
+            
+            const response = await fetch('/api/leaderboard?sortBy=achievements&limit=10');
+            const data = await response.json();
+            
+            if (data.success) {
+                const players = data.leaderboard.map((player, index) => ({
+                    rank: index + 1,
+                    name: player.username,
+                    level: player.level,
+                    exp: player.totalAchievements * 100, // Очки за достижения
+                    enemiesKilled: Math.floor(player.experience / 10), // Примерное количество убитых врагов
+                    achievements: player.totalAchievements,
+                    avatar: player.avatar
+                }));
+                
+                achievementsList.innerHTML = players.map(player => this.createLeaderboardItem(player)).join('');
+            } else {
+                achievementsList.innerHTML = '<div class="error">Ошибка загрузки данных</div>';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки рейтинга достижений:', error);
+            achievementsList.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+        }
+    }
+    
+    createLeaderboardItem(player) {
+        const rankClass = player.rank <= 3 ? ['gold', 'silver', 'bronze'][player.rank - 1] : '';
+        const rankIcon = player.rank <= 3 ? ['🥇', '🥈', '🥉'][player.rank - 1] : `${player.rank}.`;
+        
+        return `
+            <div class="leaderboard-item">
+                <div class="leaderboard-rank ${rankClass}">${rankIcon}</div>
+                <div class="leaderboard-player">
+                    <div class="leaderboard-name">${player.name}</div>
+                    <div class="leaderboard-stats">
+                        Уровень ${player.level} • Убито врагов: ${player.enemiesKilled} • Достижений: ${player.achievements}
+                    </div>
+                </div>
+                <div class="leaderboard-score">${player.exp} EXP</div>
+            </div>
+        `;
+    }
+    
     // Проверка, является ли клетка стеной
 }
 

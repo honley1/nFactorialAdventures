@@ -521,13 +521,13 @@ body {
     }
 }
 
-/* Меню паузы и настроек */
-.pause-menu, .settings-menu {
+/* Меню паузы, настроек и рейтинга */
+.pause-menu, .settings-menu, .leaderboard-menu {
     background: rgba(0, 0, 0, 0.9);
     border: 2px solid #ff0000;
     padding: 40px;
     text-align: center;
-    max-width: 400px;
+    max-width: 500px;
     width: 90%;
 }
 
@@ -589,4 +589,128 @@ body {
     .dialogue-box {
         bottom: 200px;
     }
+}
+
+/* Стили для рейтинга */
+.leaderboard-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.tab-btn {
+    background: #333;
+    border: 1px solid #666;
+    color: #ccc;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    background: #ff0000;
+    color: #000;
+    border-color: #ff0000;
+}
+
+.tab-btn:hover {
+    background: #555;
+    border-color: #ff0000;
+}
+
+.leaderboard-content {
+    margin-bottom: 20px;
+}
+
+.leaderboard-tab {
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.leaderboard-tab.active {
+    display: block;
+}
+
+.leaderboard-list {
+    text-align: left;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    margin: 5px 0;
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid #333;
+    border-radius: 5px;
+}
+
+.leaderboard-rank {
+    font-weight: bold;
+    color: #ffaa00;
+    min-width: 30px;
+    text-align: center;
+}
+
+.leaderboard-rank.gold {
+    color: #ffd700;
+}
+
+.leaderboard-rank.silver {
+    color: #c0c0c0;
+}
+
+.leaderboard-rank.bronze {
+    color: #cd7f32;
+}
+
+.leaderboard-player {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.leaderboard-name {
+    color: #fff;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.leaderboard-stats {
+    color: #ccc;
+    font-size: 0.8rem;
+}
+
+.leaderboard-score {
+    color: #00ff00;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Состояния загрузки и ошибок */
+.loading, .error {
+    text-align: center;
+    padding: 20px;
+    color: #ccc;
+    font-family: 'Orbitron', monospace;
+}
+
+.loading {
+    color: #ffaa00;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.error {
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    border-radius: 5px;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 } 
