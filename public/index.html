@@ -8,32 +8,86 @@
     <link rel="stylesheet" href="doom.css">
 </head>
 <body>
-    <!-- Экран загрузки -->
+    <!-- Экран загрузки в стиле пиксель-арта -->
     <div id="loading-screen" class="screen active">
-        <div class="doom-logo">
-            <h1>nFactorial</h1>
-            <h2>DOOM</h2>
+        <div class="pixel-art-scene">
+            <!-- Небо с облаками -->
+            <div class="sky">
+                <div class="cloud cloud-1"></div>
+                <div class="cloud cloud-2"></div>
+                <div class="cloud cloud-3"></div>
+            </div>
+            
+            <!-- Логотип ¡n! в красном круге -->
+            <div class="nfactorial-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">¡n!</span>
+                </div>
+            </div>
+            
+            <!-- Земля с травой и почвой -->
+            <div class="ground">
+                <div class="grass"></div>
+                <div class="soil"></div>
+            </div>
+            
+            <!-- Дерево -->
+            <div class="tree">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            
+            <!-- Куст -->
+            <div class="bush"></div>
+            
+            <!-- Персонаж -->
+            <div class="character">
+                <div class="character-head"></div>
+                <div class="character-body"></div>
+                <div class="character-legs"></div>
+            </div>
+            
+            <!-- Название игры -->
+            <div class="game-title">
+                <h1>nFactorial AdventureS</h1>
+                <p class="game-subtitle">The Ultimate Bootcamp Life Simulator</p>
+            </div>
         </div>
-        <div class="loading-bar">
-            <div class="loading-progress" id="loading-progress"></div>
+        
+        <!-- Прогресс загрузки -->
+        <div class="loading-container">
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+            <div class="loading-text" id="loading-text">Загружаем лабиринты буткемпа...</div>
         </div>
-        <p class="loading-text">Загружаем лабиринты буткемпа...</p>
     </div>
 
-    <!-- Главное меню -->
+    <!-- Главное меню в стиле пиксель-арта -->
     <div id="menu-screen" class="screen">
-        <div class="doom-menu">
+        <div class="pixel-art-menu">
+            <!-- Фон меню -->
+            <div class="menu-background">
+                <div class="menu-sky">
+                    <div class="cloud cloud-1"></div>
+                    <div class="cloud cloud-2"></div>
+                </div>
+                <div class="menu-ground">
+                    <div class="menu-grass"></div>
+                    <div class="menu-soil"></div>
+                </div>
+            </div>
+            
+            <!-- Логотип в меню -->
             <div class="menu-logo">
-                <h1>nFactorial DOOM</h1>
-                <p>Выживи в буткемпе программирования!</p>
+                <div class="menu-logo-circle">
+                    <span class="menu-logo-text">¡n!</span>
+                </div>
+                <h1>nFactorial AdventureS</h1>
+                <p>The Ultimate Bootcamp Life Simulator</p>
             </div>
             
-            <div class="menu-buttons">
-                <button id="start-game" class="doom-btn primary">🎮 Начать игру</button>
-                <button id="settings-btn" class="doom-btn">⚙️ Настройки</button>
-                <button id="leaderboard-btn" class="doom-btn">🏆 Рейтинг</button>
-            </div>
-            
+            <!-- Информация о игроке -->
             <div class="player-info">
                 <div class="avatar-display">
                     <img id="player-avatar" src="" alt="Avatar">
@@ -46,6 +100,13 @@
                         <span class="exp-text" id="exp-text">0/100 EXP</span>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Кнопки меню -->
+            <div class="menu-buttons">
+                <button id="start-game" class="doom-btn primary">🎮 Начать игру</button>
+                <button id="settings-btn" class="doom-btn">⚙️ Настройки</button>
+                <button id="leaderboard-btn" class="doom-btn">🏆 Рейтинг</button>
             </div>
         </div>
     </div>
